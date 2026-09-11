@@ -1,4 +1,26 @@
-# bepilot
+<div align="center">
+  <div>BePilot</div>
+  <div>
+    <a href="https://opensource.org/licenses/Apache-2.0">
+      <img src="https://img.shields.io/badge/License-Apache2.0-brightgreen.svg?style=flat" alt="License: Apache 2.0">
+    </a>
+    <a href="https://github.com/thanhbgtnut/bepilot">
+      <img src="https://img.shields.io/github/stars/thanhbgtnut/bepilot.svg?style=flat&logo=github&label=Stars" alt="Stars">
+    </a>
+    </a>
+    <a href="https://github.com/thanhbgtnut/bepilot/releases">
+      <img src="https://img.shields.io/github/v/release/thanhbgtnut/bepilot?style=flat&label=Latest%20Release&color=6D28D9" alt="Latest Release">
+    </a>
+    <a href="https://deepwiki.com/thanhbgtnut/bepilot"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
+    <a href='https://codespaces.new/thanhbgtnut/bepilot'>
+      <img src='https://github.com/codespaces/badge.svg' alt='Open in Github Codespaces' style='max-width: 100%;' height="20">
+    </a>
+  </div>
+  <div>
+    The <strong>first complete</strong> connectivity solution for Agentic AI.
+  </div>
+</div>
+
 
 A streaming AI agent backend built with **[Eino](https://github.com/cloudwego/eino)**
 (agent orchestration), **[Hertz](https://github.com/cloudwego/hertz)** (HTTP), and
