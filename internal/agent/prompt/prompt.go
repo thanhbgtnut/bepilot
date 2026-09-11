@@ -1,0 +1,222 @@
+// Package prompt assembles the dynamic system prompt for each agent turn. The
+// prompt is rebuilt every turn from ordered sections so that time-sensitive
+// context (the current date, the retrieved skills, the rolling summary) is
+// always fresh — mirroring how Claude injects an environment block and a
+// skill index without the user having to ask.
+package prompt
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+)
+
+// SkillRef is a retrieved skill surfaced to the model.
+type SkillRef struct {
+	Slug        string
+	Name        string
+	Description string
+	Score       float64
+}
+
+// ContextItem is one client-supplied situational note (AG-UI's `context`
+// array): a labeled piece of information about the caller's environment,
+// distinct from the conversation itself.
+type ContextItem struct {
+	Description string
+	Value       string
+}
+
+// TurnContext is everything a section might need. It is assembled by the runner
+// before each model call.
+type TurnContext struct {
+	Now       time.Time
+	Provider  string
+	Model     string
+	SessionID string
+
+	UserName string
+	Locale   string
+
+	Identity       string
+	ResponseStyle  string
+	SystemOverride string // per-session override/extension
+	Summary        string // rolling summary of older turns
+
+	Tools  map[string]string // name -> description
+	Skills []SkillRef
+	Memory []string
+
+	Context []ContextItem // client-supplied situational notes (AG-UI `context`)
+	State   string        // client-supplied state, pre-serialized JSON (AG-UI `state`)
+}
+
+// Section produces one block of the system prompt, or "" to omit it.
+type Section func(TurnContext) string
+
+// DefaultSections is the ordered pipeline used by the agent.
+var DefaultSections = []Section{
+	sectionIdentity,
+	sectionEnvironment,
+	sectionClientContext,
+	sectionClientState,
+	sectionMemory,
+	sectionToolGuidance,
+	sectionSkillIndex,
+	sectionResponseStyle,
+	sectionSystemOverride,
+}
+
+// Build runs the section pipeline and joins the non-empty results.
+func Build(tc TurnContext, sections ...Section) string {
+	if len(sections) == 0 {
+		sections = DefaultSections
+	}
+	parts := make([]string, 0, len(sections))
+	for _, s := range sections {
+		if out := strings.TrimSpace(s(tc)); out != "" {
+			parts = append(parts, out)
+		}
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+func sectionIdentity(tc TurnContext) string {
+	if tc.Identity == "" {
+		return ""
+	}
+	return tc.Identity
+}
+
+func sectionEnvironment(tc TurnContext) string {
+	var b strings.Builder
+	b.WriteString("<environment>\n")
+	fmt.Fprintf(&b, "Current date: %s\n", tc.Now.Format("Monday, 2 January 2006"))
+	fmt.Fprintf(&b, "Current time: %s\n", tc.Now.Format("15:04 MST"))
+	if tc.Model != "" {
+		fmt.Fprintf(&b, "Model: %s (provider: %s)\n", tc.Model, tc.Provider)
+	}
+	if tc.SessionID != "" {
+		fmt.Fprintf(&b, "Session: %s\n", tc.SessionID)
+	}
+	if tc.UserName != "" {
+		fmt.Fprintf(&b, "User: %s\n", tc.UserName)
+	}
+	if tc.Locale != "" {
+		fmt.Fprintf(&b, "User locale: %s\n", tc.Locale)
+	}
+	if len(tc.Tools) > 0 {
+		names := make([]string, 0, len(tc.Tools))
+		for n := range tc.Tools {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		fmt.Fprintf(&b, "Tools available: %s\n", strings.Join(names, ", "))
+	}
+	b.WriteString("</environment>")
+	return b.String()
+}
+
+func sectionClientContext(tc TurnContext) string {
+	if len(tc.Context) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("<client_context>\n")
+	b.WriteString("The client application supplied this situational context for the current turn:\n")
+	for _, c := range tc.Context {
+		desc, val := strings.TrimSpace(c.Description), strings.TrimSpace(c.Value)
+		switch {
+		case desc == "" && val == "":
+			continue
+		case desc == "":
+			fmt.Fprintf(&b, "- %s\n", val)
+		default:
+			fmt.Fprintf(&b, "- %s: %s\n", desc, val)
+		}
+	}
+	b.WriteString("</client_context>")
+	return b.String()
+}
+
+func sectionClientState(tc TurnContext) string {
+	if strings.TrimSpace(tc.State) == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("<client_state>\n")
+	b.WriteString("The client application's current state (JSON), for reference only — it is not part of the conversation and you cannot write to it directly:\n")
+	b.WriteString(strings.TrimSpace(tc.State))
+	b.WriteString("\n</client_state>")
+	return b.String()
+}
+
+func sectionMemory(tc TurnContext) string {
+	if len(tc.Memory) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("<memory>\nRelevant notes from earlier in this conversation:\n")
+	for _, m := range tc.Memory {
+		fmt.Fprintf(&b, "- %s\n", m)
+	}
+	if strings.TrimSpace(tc.Summary) != "" {
+		fmt.Fprintf(&b, "\nSummary of earlier turns:\n%s\n", strings.TrimSpace(tc.Summary))
+	}
+	b.WriteString("</memory>")
+	return b.String()
+}
+
+func sectionToolGuidance(tc TurnContext) string {
+	if len(tc.Tools) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(`
+<tool_use>
+- Call a tool only when it materially improves the answer (fresh data, a computation, reading a specific URL, or loading a skill). For things you already know, answer directly.
+- When several independent tool calls are needed, request them together rather than one at a time.
+- Never invent tool output. If a tool errors or returns nothing useful, say so and proceed with your best effort.
+- Stop calling tools once you have what you need, then give the final answer.
+</tool_use>`)
+}
+
+func sectionSkillIndex(tc TurnContext) string {
+	if len(tc.Skills) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(`
+<skills>
+These skills look relevant to the current conversation. A skill is a packaged procedure for a class of task. If the user's request falls under one, call load_skill with its slug to get the full instructions BEFORE you start — even if the user did not mention the skill by name. If none actually apply, ignore this list.
+`))
+	b.WriteString("\n")
+	for _, s := range tc.Skills {
+		fmt.Fprintf(&b, "- %s (slug: %s) — %s\n", s.Name, s.Slug, oneLine(s.Description))
+	}
+	b.WriteString("</skills>")
+	return b.String()
+}
+
+func sectionResponseStyle(tc TurnContext) string {
+	if tc.ResponseStyle == "" {
+		return ""
+	}
+	return "<response_style>\n" + strings.TrimSpace(tc.ResponseStyle) + "\n</response_style>"
+}
+
+func sectionSystemOverride(tc TurnContext) string {
+	if strings.TrimSpace(tc.SystemOverride) == "" {
+		return ""
+	}
+	return "<session_instructions>\n" + strings.TrimSpace(tc.SystemOverride) + "\n</session_instructions>"
+}
+
+func oneLine(s string) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.Join(strings.Fields(s), " ")
+	if len(s) > 240 {
+		s = s[:240] + "…"
+	}
+	return s
+}

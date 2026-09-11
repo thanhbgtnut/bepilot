@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: bepilot-postgres
+    environment:
+      POSTGRES_USER: bepilot
+      POSTGRES_PASSWORD: bepilot
+      POSTGRES_DB: bepilot
+    ports:
+      - "${BEPILOT_PG_PORT:-5433}:5432"
+    volumes:
+      - bepilot_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bepilot -d bepilot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  bepilot_pgdata:

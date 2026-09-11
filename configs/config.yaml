@@ -1,0 +1,89 @@
+# bepilot configuration. Values of the form ${VAR} are expanded from the
+# environment at load time. A few well-known env vars also override entries
+# directly: DATABASE_URL, ANTHROPIC_API_KEY, OPENAI_API_KEY,
+# BEPILOT_DEFAULT_PROVIDER, BEPILOT_HTTP_ADDR.
+
+env: ${BEPILOT_ENV}
+
+http:
+  addr: ${BEPILOT_HTTP_ADDR}
+  read_timeout: 65s
+  write_timeout: 0s          # keep 0 for SSE
+  shutdown_timeout: 20s
+  cors_origins: []           # empty = allow any origin
+
+db:
+  dsn: ${DATABASE_URL}
+  max_conns: 10
+  min_conns: 1
+  max_conn_lifetime: 1h
+  auto_migrate: true
+
+llm:
+  default_provider: ${BEPILOT_DEFAULT_PROVIDER}
+  default_model: ${BEPILOT_DEFAULT_MODEL}
+  summary_model: ${BEPILOT_DEFAULT_MODEL}
+  max_tokens: 4096
+  request_timeout: 5m
+  providers:
+    claude:
+      kind: claude
+      api_key: ${ANTHROPIC_API_KEY}
+      base_url: ${ANTHROPIC_BASE_URL}
+    openai:
+      kind: openai
+      # api_key is optional for local OpenAI-compatible servers (LM Studio,
+      # llama.cpp, vLLM, Ollama). base_url may be the API base
+      # (http://127.0.0.1:1234/v1) or a full endpoint URL — the
+      # /chat/completions suffix is trimmed automatically.
+      api_key: ${OPENAI_API_KEY}
+      base_url: ${OPENAI_BASE_URL}
+    # Deterministic, network-free provider for local development and tests.
+    fake:
+      kind: fake
+
+embedding:
+  # 'hash' is deterministic and needs no API key. Switch to 'openai' for real
+  # semantic retrieval (keep dim consistent with the migration: 1536).
+  kind: ${BEPILOT_EMBEDDING_KIND}
+  model: text-embedding-3-small
+  api_key: ${OPENAI_API_KEY}
+  base_url: ${OPENAI_BASE_URL}
+  dim: 1536
+
+agent:
+  identity: >-
+    You are bepilot, a helpful, precise AI assistant. You give direct,
+    well-structured answers, use tools and skills when they materially improve
+    the result, and you never fabricate facts or tool output.
+  response_style: >-
+    Prefer concise, skimmable answers in Markdown. Lead with the answer, then
+    supporting detail. Match the user's language.
+  max_steps: 16
+  history_token_budget: 24000
+  summarize_every_n: 8
+  skill_top_k: 4
+  ping_interval: 15s
+
+skills:
+  dir: ${BEPILOT_SKILLS_DIR}
+  sync_on_startup: true
+
+tools:
+  http_allowlist: []          # empty = any public host
+
+mcp:
+  # Model Context Protocol servers. Both sources below are hot-reloadable — a
+  # server can be attached or detached while the process runs, and its tools
+  # appear on the next message with no restart.
+  enabled: ${BEPILOT_MCP_ENABLED}   # empty/false = MCP off, API returns 503
+  # Static server list. Edit this file while running: changes are reconciled
+  # within reload_interval. Leave file blank to use the API only.
+  file: configs/mcp.yaml
+  reload_interval: 10s              # 0 = load once at startup, never re-read
+  init_timeout: 20s                 # per-server connect + handshake budget
+  tool_prefix: "mcp__"             # tools import as <prefix><server>__<tool>
+
+log:
+  level: ${BEPILOT_LOG_LEVEL}
+  format: ${BEPILOT_LOG_FORMAT}

@@ -1,0 +1,859 @@
+basePath: /
+definitions:
+  dto.AGUIContextItem:
+    properties:
+      description:
+        type: string
+      value:
+        type: string
+    type: object
+  dto.AGUIMessage:
+    properties:
+      content:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        description: user | assistant | tool | system | developer
+        type: string
+      toolCallId:
+        type: string
+    type: object
+  dto.AGUIRunAgentInput:
+    properties:
+      context:
+        items:
+          $ref: '#/definitions/dto.AGUIContextItem'
+        type: array
+      forwardedProps:
+        type: object
+      messages:
+        items:
+          $ref: '#/definitions/dto.AGUIMessage'
+        type: array
+      runId:
+        type: string
+      state:
+        type: object
+      threadId:
+        type: string
+      tools:
+        items:
+          $ref: '#/definitions/dto.AGUIToolDefinition'
+        type: array
+    type: object
+  dto.AGUIToolDefinition:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      parameters:
+        type: object
+    type: object
+  dto.CreateSessionRequest:
+    properties:
+      metadata:
+        additionalProperties: {}
+        type: object
+      model:
+        type: string
+      provider:
+        type: string
+      system:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.DeleteResponse:
+    properties:
+      deleted:
+        type: boolean
+      id:
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        properties:
+          message:
+            type: string
+          type:
+            type: string
+        type: object
+      type:
+        description: '"error"'
+        type: string
+    type: object
+  dto.HealthResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  dto.InputMessage:
+    properties:
+      content:
+        description: string, or an array of content blocks
+        type: object
+      role:
+        type: string
+    type: object
+  dto.MCPServerListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.MCPServerView'
+        type: array
+    type: object
+  dto.MCPServerRequest:
+    properties:
+      always_bound:
+        type: boolean
+      args:
+        items:
+          type: string
+        type: array
+      command:
+        description: stdio
+        type: string
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      tool_allowlist:
+        items:
+          type: string
+        type: array
+      transport:
+        description: stdio | sse | streamable_http
+        type: string
+      url:
+        description: sse | streamable_http
+        type: string
+    type: object
+  dto.MCPServerView:
+    properties:
+      connected_at:
+        type: string
+      name:
+        type: string
+      source:
+        description: file | api
+        type: string
+      tools:
+        items:
+          type: string
+        type: array
+      transport:
+        type: string
+    type: object
+  dto.MessageListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.TranscriptMessage'
+        type: array
+    type: object
+  dto.MessageResponse:
+    properties:
+      content:
+        items:
+          $ref: '#/definitions/dto.OutputBlock'
+        type: array
+      id:
+        type: string
+      model:
+        type: string
+      role:
+        description: '"assistant"'
+        type: string
+      session:
+        allOf:
+        - $ref: '#/definitions/dto.SessionBrief'
+        description: bepilot extension
+      stop_reason:
+        type: string
+      stop_sequence:
+        type: string
+      type:
+        description: '"message"'
+        type: string
+      usage:
+        $ref: '#/definitions/dto.Usage'
+    type: object
+  dto.MessagesRequest:
+    properties:
+      max_tokens:
+        type: integer
+      messages:
+        items:
+          $ref: '#/definitions/dto.InputMessage'
+        type: array
+      metadata:
+        $ref: '#/definitions/dto.Metadata'
+      model:
+        type: string
+      provider:
+        description: bepilot extension
+        type: string
+      stream:
+        type: boolean
+      system:
+        description: string, or [{"type":"text","text":"..."}]
+        type: object
+      temperature:
+        type: number
+    type: object
+  dto.Metadata:
+    properties:
+      session_id:
+        description: bepilot extension
+        type: string
+      user_id:
+        type: string
+    type: object
+  dto.OutputBlock:
+    properties:
+      content: {}
+      id:
+        type: string
+      input:
+        additionalProperties: {}
+        type: object
+      is_error:
+        type: boolean
+      name:
+        type: string
+      text:
+        type: string
+      thinking:
+        type: string
+      tool_use_id:
+        type: string
+      type:
+        description: text | tool_use | tool_result | thinking
+        type: string
+    type: object
+  dto.ReadyResponse:
+    properties:
+      default_model:
+        type: string
+      default_provider:
+        type: string
+      error:
+        type: string
+      providers:
+        items:
+          type: string
+        type: array
+      status:
+        example: ready
+        type: string
+    type: object
+  dto.SessionBrief:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      model:
+        type: string
+      provider:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.SessionDetail:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      messages:
+        items:
+          $ref: '#/definitions/dto.TranscriptMessage'
+        type: array
+      metadata:
+        additionalProperties: {}
+        type: object
+      model:
+        type: string
+      provider:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  dto.SessionList:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.SessionBrief'
+        type: array
+      has_more:
+        type: boolean
+      next_cursor:
+        type: string
+    type: object
+  dto.SkillListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.SkillView'
+        type: array
+    type: object
+  dto.SkillSyncResult:
+    properties:
+      deleted:
+        type: integer
+      discovered:
+        type: integer
+      embedded:
+        type: integer
+      slugs:
+        items:
+          type: string
+        type: array
+    type: object
+  dto.SkillView:
+    properties:
+      allowed_tools:
+        items:
+          type: string
+        type: array
+      description:
+        type: string
+      enabled:
+        type: boolean
+      has_embedding:
+        type: boolean
+      name:
+        type: string
+      slug:
+        type: string
+    type: object
+  dto.TranscriptMessage:
+    properties:
+      content:
+        items:
+          $ref: '#/definitions/dto.OutputBlock'
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+      seq:
+        type: integer
+      stop_reason:
+        type: string
+      usage:
+        $ref: '#/definitions/dto.Usage'
+    type: object
+  dto.UpdateSessionRequest:
+    properties:
+      metadata:
+        additionalProperties: {}
+        type: object
+      title:
+        type: string
+    type: object
+  dto.Usage:
+    properties:
+      input_tokens:
+        type: integer
+      output_tokens:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: A streaming AI agent backend. `/v1/messages` mirrors the Anthropic
+    Messages API (with additive `provider` and `metadata.session_id` fields); the
+    `/v1/sessions` endpoints manage conversations and let you list a user's chats
+    and replay transcripts.
+  title: bepilot API
+  version: 1.0.0
+paths:
+  /healthz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+      summary: Liveness probe
+      tags:
+      - Health
+  /readyz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ReadyResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ReadyResponse'
+      summary: Readiness probe (checks the database)
+      tags:
+      - Health
+  /v1/ag-ui/run:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Accepts an AG-UI `RunAgentInput` and streams the turn back as AG-UI protocol Server-Sent Events: `RUN_STARTED`, `TEXT_MESSAGE_START` / `TEXT_MESSAGE_CONTENT` / `TEXT_MESSAGE_END`, `TOOL_CALL_START` / `TOOL_CALL_ARGS` / `TOOL_CALL_END` / `TOOL_CALL_RESULT`, then `RUN_FINISHED` (or `RUN_ERROR`). Each frame is a `data:` line whose JSON carries a `type` field.
+        `threadId` maps to a bepilot session: pass an existing session id to continue a conversation, or leave it empty to start a new one (the new id is returned in `RUN_STARTED.threadId` — persist it for the next turn). Only the last user message drives the turn; history is loaded server-side. `state` and `context` are folded into the system prompt for this turn. `tools` are bound as client-executed tools: the agent may call one, but bepilot only emits the `TOOL_CALL_*` frames and ends the run — the client must execute the tool and send the result back as a `tool` message on the next run. `forwardedProps` is accepted but has no defined effect.
+      parameters:
+      - description: AG-UI RunAgentInput
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AGUIRunAgentInput'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: AG-UI protocol SSE event stream
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Run an agent turn (AG-UI protocol)
+      tags:
+      - AG-UI
+  /v1/mcp/servers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MCPServerListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List attached MCP servers
+      tags:
+      - MCP
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: MCP server connection
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MCPServerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MCPServerView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Attach or update an MCP server
+      tags:
+      - MCP
+  /v1/mcp/servers/{name}:
+    delete:
+      parameters:
+      - description: Server name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DeleteResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Detach an API-registered MCP server
+      tags:
+      - MCP
+  /v1/messages:
+    post:
+      consumes:
+      - application/json
+      description: 'Runs one agent turn. With `stream: true` (or `Accept: text/event-stream`)
+        the response is Server-Sent Events using Anthropic frame types (`message_start`,
+        `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`,
+        `message_stop`, `ping`, `error`) plus the extension events `tool_execution_start`
+        / `tool_execution_stop`. Otherwise a single JSON message is returned.'
+      parameters:
+      - description: Message request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MessagesRequest'
+      produces:
+      - application/json
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a message (streaming or buffered)
+      tags:
+      - Messages
+  /v1/sessions:
+    get:
+      parameters:
+      - default: 30
+        description: Page size (1-100)
+        in: query
+        name: limit
+        type: integer
+      - description: Opaque cursor from a previous response's next_cursor
+        in: query
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SessionList'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List the authenticated user's sessions
+      tags:
+      - Sessions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Session fields
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/dto.CreateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SessionBrief'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create a session explicitly
+      tags:
+      - Sessions
+  /v1/sessions/{id}:
+    delete:
+      parameters:
+      - description: Session id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DeleteResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Soft-delete a session
+      tags:
+      - Sessions
+    get:
+      parameters:
+      - description: Session id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SessionDetail'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a session with its reconstructed transcript
+      tags:
+      - Sessions
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Session id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SessionBrief'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update a session's title or metadata
+      tags:
+      - Sessions
+  /v1/sessions/{id}/messages:
+    get:
+      parameters:
+      - description: Session id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Return messages with seq greater than this
+        in: query
+        name: after_seq
+        type: integer
+      - default: 200
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List a session's messages
+      tags:
+      - Sessions
+  /v1/skills:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SkillListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List skills and their status
+      tags:
+      - Skills
+  /v1/skills/sync:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SkillSyncResult'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Rescan the skills directory and reconcile the database
+      tags:
+      - Skills
+schemes:
+- http
+- https
+securityDefinitions:
+  ApiKeyAuth:
+    description: 'An API key issued by `cmd/seed`. `Authorization: Bearer <key>` is
+      also accepted.'
+    in: header
+    name: x-api-key
+    type: apiKey
+swagger: "2.0"
