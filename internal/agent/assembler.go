@@ -183,6 +183,17 @@ func (a *assembler) finish(defaultFinish string) {
 	a.lastFinish = reason
 }
 
+// interrupt ends the run because the user asked it to stop. It keeps what was
+// produced so far and clears the error that the cancelled model call reported,
+// so the client sees a normal end of turn rather than a failure.
+func (a *assembler) interrupt() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.closeLocked()
+	a.failed, a.failErrType, a.failErrMsg = false, "", ""
+	a.lastFinish = "interrupted"
+}
+
 // fail closes any open block and marks the run as failed. Like finish, it
 // does NOT emit the terminal SSE event — see emitStop.
 func (a *assembler) fail(errType, msg string) {

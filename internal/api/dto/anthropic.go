@@ -116,6 +116,15 @@ type MessageResponse struct {
 	Session      *SessionBrief `json:"session,omitempty"` // bepilot extension
 }
 
+// SteeredResponse is returned instead of a message when the session already had
+// a turn running and the new message was handed to it. The reply is not in this
+// response: it arrives on the stream of the turn that is running.
+type SteeredResponse struct {
+	Type      string        `json:"type"`       // "steered"
+	MessageID string        `json:"message_id"` // the stored user message
+	Session   *SessionBrief `json:"session,omitempty"`
+}
+
 // OutputBlock is one content block in a response.
 type OutputBlock struct {
 	Type      string         `json:"type"` // text | tool_use | tool_result | thinking

@@ -35,11 +35,12 @@ type Agent struct {
 	acfg     config.AgentCfg
 	lcfg     config.LLM
 	log      *slog.Logger
+	runs     *runRegistry // the turn running on each session, if any
 }
 
 // New builds an Agent.
 func New(st *store.Store, reg *llm.Registry, tr *tools.Registry, sk *skills.Service, acfg config.AgentCfg, lcfg config.LLM, log *slog.Logger) *Agent {
-	return &Agent{store: st, registry: reg, tools: tr, skills: sk, acfg: acfg, lcfg: lcfg, log: log}
+	return &Agent{store: st, registry: reg, tools: tr, skills: sk, acfg: acfg, lcfg: lcfg, log: log, runs: newRunRegistry()}
 }
 
 // RunInput describes one turn request.
@@ -60,6 +61,10 @@ type RunInput struct {
 	Context     []prompt.ContextItem // AG-UI `context`: situational notes folded into the prompt
 	State       json.RawMessage      // AG-UI `state`: client state folded into the prompt, read-only
 	ClientTools []ClientTool         // AG-UI `tools`: client-executed tools bound for this turn only
+
+	// preSaved is a user message that is already stored (one accepted while a
+	// turn was running); the turn answers it instead of storing it again.
+	preSaved *domain.Message
 }
 
 // RunOutput is the persisted assistant message plus stats.
@@ -67,6 +72,11 @@ type RunOutput struct {
 	UserMessage      domain.Message
 	AssistantMessage domain.Message
 	Stats            RunStats
+
+	// Steered is true when the session already had a turn running and this
+	// message was handed to it instead of starting another: the reply arrives
+	// on the running turn's stream, and AssistantMessage is empty.
+	Steered bool
 }
 
 // RunStats is exported observability for one turn.
@@ -79,12 +89,111 @@ type RunStats struct {
 	Steps        int
 	LatencyMS    int
 	SkillsFound  []string
+	Detail       map[string]any // stored with the run; see domain.AgentRun.Detail
 }
 
 // Run executes the turn. If sink is non-nil, events are emitted as they occur
 // (streaming); pass nil for a buffered/non-streaming turn. The assistant
 // message is persisted before Run returns, even on partial failure.
+//
+// A session runs one turn at a time, but a message never has to wait for it:
+//   - a message sent while a turn is running is handed to that turn, which reads
+//     it before its next step (RunOutput.Steered) — the reply arrives on the
+//     running turn's stream;
+//   - a short "stop" message interrupts the running turn, which keeps what it
+//     produced so far and ends with stop reason "interrupted"; the message then
+//     runs as an ordinary turn.
 func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutput, error) {
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	sid := in.Session.ID
+
+	for {
+		ar, owner := a.runs.acquire(sid, cancel)
+		if owner {
+			out, err := a.runTurn(runCtx, ar, in, sink)
+			left := append(ar.left, ar.steer.close()...)
+			a.runs.release(sid, ar)
+			a.resume(in, left)
+			return out, err
+		}
+
+		if in.preSaved == nil && isStopRequest(in.UserText) {
+			ar.interrupt()
+			if err := waitRun(ctx, ar); err != nil {
+				return RunOutput{}, err
+			}
+			continue
+		}
+
+		if in.preSaved == nil {
+			msg, err := a.persistUser(ctx, sid, in.UserText)
+			if err != nil {
+				return RunOutput{}, err
+			}
+			in.preSaved = &msg
+		}
+		if ar.steer.push(steerMsg{Text: in.UserText, Msg: *in.preSaved}) {
+			return RunOutput{UserMessage: *in.preSaved, Steered: true}, nil
+		}
+		// The turn stopped reading its inbox a moment ago; let it finish, then
+		// run this message as a turn of its own.
+		if err := waitRun(ctx, ar); err != nil {
+			return RunOutput{}, err
+		}
+	}
+}
+
+// waitRun blocks until the given turn has been persisted and released.
+func waitRun(ctx context.Context, ar *activeRun) error {
+	select {
+	case <-ar.done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// persistUser stores an incoming user message. It is detached from request
+// cancellation so a client disconnecting never loses a message it sent.
+func (a *Agent) persistUser(ctx context.Context, sessionID uuid.UUID, text string) (domain.Message, error) {
+	pctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Second)
+	defer cancel()
+	msg := domain.Message{
+		SessionID: sessionID,
+		Role:      domain.RoleUser,
+		Blocks:    []domain.ContentBlock{{Type: domain.BlockText, Text: text}},
+	}
+	if err := a.store.Messages.Append(pctx, &msg); err != nil {
+		return domain.Message{}, fmt.Errorf("persist user message: %w", err)
+	}
+	return msg, nil
+}
+
+// resume answers messages that were accepted by a turn that ended before its
+// model could read them. They are already stored; without this they would sit
+// in the history unanswered until the user wrote again. The reply is stored,
+// not streamed (the request that sent them has long returned).
+func (a *Agent) resume(in RunInput, left []steerMsg) {
+	if len(left) == 0 {
+		return
+	}
+	last := left[len(left)-1]
+	next := in
+	next.UserText = last.Text
+	next.preSaved = &last.Msg
+	next.ClientTools = nil
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		if _, err := a.Run(ctx, next, nil); err != nil {
+			a.log.Warn("follow-up turn for late messages failed", "session", in.Session.ID, "err", err)
+		}
+	}()
+}
+
+// runTurn is one turn, run as the session's only active turn.
+func (a *Agent) runTurn(ctx context.Context, ar *activeRun, in RunInput, sink events.Sink) (RunOutput, error) {
 	start := time.Now()
 	sess := in.Session
 
@@ -93,14 +202,15 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 	persistCtx, cancelPersist := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Second)
 	defer cancelPersist()
 
-	// 1. Persist the incoming user message.
-	userMsg := domain.Message{
-		SessionID: sess.ID,
-		Role:      domain.RoleUser,
-		Blocks:    []domain.ContentBlock{{Type: domain.BlockText, Text: in.UserText}},
-	}
-	if err := a.store.Messages.Append(persistCtx, &userMsg); err != nil {
-		return RunOutput{}, fmt.Errorf("persist user message: %w", err)
+	// 1. Persist the incoming user message (unless it was stored already).
+	var userMsg domain.Message
+	if in.preSaved != nil {
+		userMsg = *in.preSaved
+	} else {
+		var err error
+		if userMsg, err = a.persistUser(ctx, sess.ID, in.UserText); err != nil {
+			return RunOutput{}, err
+		}
 	}
 
 	// asm accumulates events/content for the whole turn. It is created here
@@ -181,6 +291,7 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 	// 5. Build the dynamic system prompt.
 	sysOverride := strings.TrimSpace(strings.Join([]string{sess.SystemOverride, in.RequestSystem}, "\n\n"))
 	tc := prompt.TurnContext{
+		MaxSteps:       a.acfg.MaxSteps,
 		Now:            time.Now(),
 		Provider:       in.Provider,
 		Model:          in.Model,
@@ -207,13 +318,17 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 	if maxTokens <= 0 {
 		maxTokens = a.lcfg.MaxTokens
 	}
-	cm, err := provider.Model(ctx, in.Model, llm.Options{MaxTokens: maxTokens, Temperature: in.Temperature})
+	temperature := in.Temperature
+	if temperature == nil {
+		temperature = a.lcfg.Temperature
+	}
+	cm, err := provider.Model(ctx, in.Model, llm.Options{MaxTokens: maxTokens, Temperature: temperature})
 	if err != nil {
 		return fail(fmt.Errorf("build chat model: %w", err))
 	}
 
 	// 7. Build and run the ReAct agent.
-	reactAgent, err := buildReactAgent(ctx, toolSess.WrapModel(cm), boundTools, systemPrompt, a.acfg.MaxSteps, clientToolReturnDirectly)
+	reactAgent, err := buildReactAgent(ctx, toolSess.WrapModel(cm), boundTools, systemPrompt, a.acfg.MaxSteps, clientToolReturnDirectly, ar.steer)
 	if err != nil {
 		return fail(fmt.Errorf("build react agent: %w", err))
 	}
@@ -227,9 +342,18 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 
 	handler := newCallbackHandler(asm)
 	runErr := a.drive(ctx, reactAgent, einoHistory, handler)
-	if runErr != nil {
+	// The model has read its inbox for the last time. Anything that arrives from
+	// here on is run as a turn of its own; what arrived too late for the model
+	// is answered by a follow-up turn (see resume).
+	ar.left = append(ar.left, ar.steer.close()...)
+	switch {
+	case runErr != nil && ar.interrupted.Load():
+		// The user asked for this: keep what was produced, end without an error.
+		asm.interrupt()
+		runErr = nil
+	case runErr != nil:
 		asm.fail("api_error", runErr.Error())
-	} else {
+	default:
 		asm.finish("end_turn")
 	}
 
@@ -276,6 +400,7 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 		Provider: provider.Name(), Model: in.Model,
 		StopReason: stats.StopReason, InputTokens: stats.InputTokens, OutputTokens: stats.OutputTokens,
 		Steps: stats.Steps, LatencyMS: int(time.Since(start).Milliseconds()), SkillsFound: skillSlugs,
+		Detail: runDetail(stats.StopReason, maxTokens, temperature, blocks, skillSlugs, len(einoHistory), ar),
 	}
 	a.recordRun(finishCtx, sess.ID, assistantMsg.ID, runStats, runErr)
 	_ = a.store.Sessions.Touch(finishCtx, sess.ID)
@@ -311,6 +436,7 @@ func (a *Agent) recordRun(ctx context.Context, sessionID, msgID uuid.UUID, s Run
 	rec := domain.AgentRun{
 		SessionID: sessionID, Provider: s.Provider, Model: s.Model,
 		Steps: s.Steps, TokensIn: s.InputTokens, TokensOut: s.OutputTokens, LatencyMS: s.LatencyMS,
+		Detail: s.Detail,
 	}
 	if msgID != uuid.Nil {
 		rec.MessageID = &msgID
@@ -321,4 +447,37 @@ func (a *Agent) recordRun(ctx context.Context, sessionID, msgID uuid.UUID, s Run
 	if err := a.store.Runs.Insert(ctx, rec); err != nil {
 		a.log.Warn("record agent run failed", "err", err)
 	}
+}
+
+// runDetail describes how a turn ran, for agent_runs.detail. It is what makes
+// two runs of the same request comparable: same settings? same tools? did one
+// stop because of the output limit?
+func runDetail(stopReason string, maxTokens int, temperature *float32, blocks []domain.ContentBlock, skills []string, historyMessages int, ar *activeRun) map[string]any {
+	d := map[string]any{
+		"stop_reason":      stopReason,
+		"max_tokens":       maxTokens,
+		"history_messages": historyMessages,
+	}
+	if temperature != nil {
+		d["temperature"] = *temperature
+	}
+	tools := map[string]int{}
+	for _, b := range blocks {
+		if b.Type == domain.BlockToolUse && b.ToolName != "" {
+			tools[b.ToolName]++
+		}
+	}
+	if len(tools) > 0 {
+		d["tool_calls"] = tools
+	}
+	if len(skills) > 0 {
+		d["skills"] = skills
+	}
+	if n := ar.steer.accepted(); n > 0 {
+		d["steered_messages"] = n
+	}
+	if ar.interrupted.Load() {
+		d["interrupted"] = true
+	}
+	return d
 }

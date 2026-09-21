@@ -18,12 +18,33 @@ type MessagesRepo struct{ pool *pgxpool.Pool }
 
 // Append writes one message and its ordered content blocks in a single
 // transaction, assigning the next sequence number for the session.
-func (r *MessagesRepo) Append(ctx context.Context, m *domain.Message) error {
+func (r *MessagesRepo) Append(ctx context.Context, m *domain.Message) (err error) {
+	// The transaction below hands out ids (RETURNING) before it can still fail.
+	// If it does, the rows are rolled back, so the caller must not be left
+	// holding ids of records that do not exist — anything that references the
+	// message (agent_runs.message_id) would violate its foreign key.
+	defer func() {
+		if err != nil {
+			m.ID, m.Seq = uuid.Nil, 0
+			for i := range m.Blocks {
+				m.Blocks[i].ID, m.Blocks[i].MessageID = uuid.Nil, uuid.Nil
+			}
+		}
+	}()
+
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("messages.Append: begin: %w", err)
 	}
 	defer tx.Rollback(ctx)
+
+	// Serialise writers per session. Without this two concurrent Appends (a
+	// message sent while a turn is still running) both read the same MAX(seq)
+	// and either collide on the unique key or interleave out of order. The lock
+	// is held until this transaction ends.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`, m.SessionID.String()); err != nil {
+		return fmt.Errorf("messages.Append: lock: %w", err)
+	}
 
 	var seq int
 	if err := tx.QueryRow(ctx,
@@ -34,6 +55,8 @@ func (r *MessagesRepo) Append(ctx context.Context, m *domain.Message) error {
 	m.Seq = seq
 
 	usageJSON, _ := json.Marshal(m.Usage)
+	m.Role = cleanText(m.Role)
+	m.StopReason = cleanText(m.StopReason)
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO messages (session_id, seq, role, stop_reason, usage)
 		VALUES ($1, $2, $3, $4, $5)
@@ -49,17 +72,18 @@ func (r *MessagesRepo) Append(ctx context.Context, m *domain.Message) error {
 		b.Idx = i
 		var toolInput, toolResult []byte
 		if b.ToolInput != nil {
-			toolInput, _ = json.Marshal(b.ToolInput)
+			toolInput, _ = cleanJSON(b.ToolInput)
 		}
 		if b.ToolResult != nil {
-			toolResult, _ = json.Marshal(b.ToolResult)
+			toolResult, _ = cleanJSON(b.ToolResult)
 		}
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO content_blocks
 				(message_id, idx, type, text, thinking, tool_name, tool_use_id, tool_input, tool_result, is_error)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			RETURNING id`,
-			b.MessageID, b.Idx, b.Type, b.Text, b.Thinking, b.ToolName, b.ToolUseID,
+			b.MessageID, b.Idx, cleanText(b.Type), cleanText(b.Text), cleanText(b.Thinking),
+			cleanText(b.ToolName), cleanText(b.ToolUseID),
 			nullableJSON(toolInput), nullableJSON(toolResult), b.IsError,
 		).Scan(&b.ID); err != nil {
 			return fmt.Errorf("messages.Append: insert block %d: %w", i, err)

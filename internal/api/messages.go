@@ -7,6 +7,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/google/uuid"
+	hsse "github.com/hertz-contrib/sse"
 
 	"github.com/thanhenti/bepilot/internal/agent"
 	"github.com/thanhenti/bepilot/internal/agent/events"
@@ -21,12 +22,14 @@ import (
 //
 // @Summary     Create a message (streaming or buffered)
 // @Description Runs one agent turn. With `stream: true` (or `Accept: text/event-stream`) the response is Server-Sent Events using Anthropic frame types (`message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`, `ping`, `error`) plus the extension events `tool_execution_start` / `tool_execution_stop`. `message_start.message.session_id` is a bepilot extension carrying the session the turn was persisted under — capture it (when `metadata.session_id` was omitted, a new session is created) and pass it back as `metadata.session_id` on the next call to continue the conversation. Otherwise a single JSON message is returned, whose `session` field carries the same information.
+// @Description A session runs one turn at a time, but a message never has to wait for it. If a turn is already running on the session, the new message is handed to that turn, which reads it before its next step: the response is `202` with `{"type":"steered"}` (or, when streaming, a single `steered` event) and the reply arrives on the stream of the turn that is running. A short stop message ("stop", "dừng", "hủy") instead interrupts the running turn, which keeps what it produced and ends with `stop_reason: "interrupted"`, and the message then runs as a normal turn.
 // @Tags        Messages
 // @Accept      json
 // @Produce     json
 // @Produce     text/event-stream
 // @Param       request  body      dto.MessagesRequest  true  "Message request"
 // @Success     200      {object}  dto.MessageResponse
+// @Success     202      {object}  dto.SteeredResponse
 // @Failure     400      {object}  dto.ErrorResponse
 // @Failure     401      {object}  dto.ErrorResponse
 // @Failure     403      {object}  dto.ErrorResponse
@@ -116,6 +119,10 @@ func (h *Handlers) bufferedTurn(ctx context.Context, c *app.RequestContext, in a
 		return
 	}
 	brief := dto.BriefFromDomain(in.Session)
+	if out.Steered {
+		c.JSON(consts.StatusAccepted, dto.SteeredResponse{Type: "steered", MessageID: messageID(out.UserMessage.ID), Session: &brief})
+		return
+	}
 	resp := dto.MessageResponse{
 		ID:         messageID(out.AssistantMessage.ID),
 		Type:       "message",
@@ -141,9 +148,14 @@ func (h *Handlers) streamTurn(ctx context.Context, c *app.RequestContext, in age
 	go w.RunPinger(pingCtx, h.Agentcfg.PingInterval)
 
 	sink := func(ev events.Event) { w.Emit(ev) }
-	if _, err := h.Agent.Run(ctx, in, sink); err != nil {
+	out, err := h.Agent.Run(ctx, in, sink)
+	if err != nil {
 		h.Log.Warn("stream turn ended with error", "session", in.Session.ID, "err", err)
 		// The agent already emitted an `error` event via the sink.
+	}
+	if out.Steered {
+		// Nothing was streamed: the reply comes on the running turn's stream.
+		w.Publish(&hsse.Event{Event: "steered", Data: []byte(`{"type":"steered","message_id":"` + messageID(out.UserMessage.ID) + `"}`)})
 	}
 }
 
@@ -177,10 +189,7 @@ func (h *Handlers) resolveSession(ctx context.Context, user domain.User, req dto
 		return sess, nil
 	}
 
-	title := firstText
-	if len(title) > 60 {
-		title = strings.TrimSpace(title[:60]) + "…"
-	}
+	title := sessionTitle(firstText, 60)
 	return h.Store.Sessions.Create(ctx, store.CreateParams{
 		UserID:   user.ID,
 		Title:    title,

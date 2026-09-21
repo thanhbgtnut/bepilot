@@ -26,7 +26,14 @@ llm:
   default_provider: ${BEPILOT_DEFAULT_PROVIDER}
   default_model: ${BEPILOT_DEFAULT_MODEL}
   summary_model: ${BEPILOT_DEFAULT_MODEL}
-  max_tokens: 4096
+  # Per-reply output cap. A reply cut off by it is continued automatically (up to
+  # 4 times), but every continuation re-sends the conversation, so a cap that fits
+  # typical long answers is cheaper than relying on that.
+  max_tokens: 16000
+  # Default sampling temperature when a request sets none. Leave unset for the
+  # provider's default; use 0-0.3 where the same request should give the same
+  # answer on every run.
+  # temperature: 0.2
   request_timeout: 5m
   providers:
     claude:
@@ -62,6 +69,9 @@ agent:
   response_style: >-
     Prefer concise, skimmable answers in Markdown. Lead with the answer, then
     supporting detail. Match the user's language.
+  # Most times one turn may call the model (each tool round is one call). On the
+  # last call the model gets no tools and must answer, so a turn that runs out
+  # of budget still ends with a reply instead of an error.
   max_steps: 16
   history_token_budget: 24000
   summarize_every_n: 8

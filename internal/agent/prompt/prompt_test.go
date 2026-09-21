@@ -98,3 +98,15 @@ func TestAccuracySection(t *testing.T) {
 		}
 	}
 }
+
+func TestToolGuidanceStatesTheStepBudget(t *testing.T) {
+	tc := TurnContext{Tools: map[string]string{"calculate": "x"}}
+	if strings.Contains(sectionToolGuidance(tc), "model calls") {
+		t.Fatal("no budget known: must not state one")
+	}
+	tc.MaxSteps = 16
+	got := sectionToolGuidance(tc)
+	if !strings.Contains(got, "at most 16 model calls") || !strings.HasSuffix(got, "</tool_use>") {
+		t.Fatalf("budget line missing or misplaced:\n%s", got)
+	}
+}

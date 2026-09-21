@@ -136,12 +136,16 @@ type ProviderCfg struct {
 
 // LLM configures the provider registry and default model selection.
 type LLM struct {
-	DefaultProvider string                 `yaml:"default_provider"`
-	DefaultModel    string                 `yaml:"default_model"`
-	SummaryModel    string                 `yaml:"summary_model"`
-	MaxTokens       int                    `yaml:"max_tokens"`
-	RequestTimeout  time.Duration          `yaml:"request_timeout"`
-	Providers       map[string]ProviderCfg `yaml:"providers"`
+	DefaultProvider string `yaml:"default_provider"`
+	DefaultModel    string `yaml:"default_model"`
+	SummaryModel    string `yaml:"summary_model"`
+	MaxTokens       int    `yaml:"max_tokens"`
+	// Temperature is the default sampling temperature when a request does not
+	// set one. Unset = the provider's own default. Lower it (0–0.3) where the
+	// same request should give the same answer every time.
+	Temperature    *float32               `yaml:"temperature"`
+	RequestTimeout time.Duration          `yaml:"request_timeout"`
+	Providers      map[string]ProviderCfg `yaml:"providers"`
 }
 
 // Embedding configures the embedder used for skill retrieval.

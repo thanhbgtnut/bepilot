@@ -23,6 +23,7 @@ import (
 // @Summary     Run an agent turn (AG-UI protocol)
 // @Description Accepts an AG-UI `RunAgentInput` and streams the turn back as AG-UI protocol Server-Sent Events: `RUN_STARTED`, `TEXT_MESSAGE_START` / `TEXT_MESSAGE_CONTENT` / `TEXT_MESSAGE_END`, `TOOL_CALL_START` / `TOOL_CALL_ARGS` / `TOOL_CALL_END` / `TOOL_CALL_RESULT`, then `RUN_FINISHED` (or `RUN_ERROR`). Each frame is a `data:` line whose JSON carries a `type` field.
 // @Description `threadId` maps to a bepilot session: pass an existing session id to continue a conversation, or leave it empty to start a new one (the new id is returned in `RUN_STARTED.threadId` — persist it for the next turn). Only the last user message drives the turn; history is loaded server-side. `state` and `context` are folded into the system prompt for this turn. `tools` are bound as client-executed tools: the agent may call one, but bepilot only emits the `TOOL_CALL_*` frames and ends the run — the client must execute the tool and send the result back as a `tool` message on the next run. `forwardedProps` is accepted but has no defined effect. A request whose `messages` carries no user turn is treated as a history replay for an existing `threadId` (CopilotKit issues this when a thread becomes the active one in the UI): the response is `RUN_STARTED` + `MESSAGES_SNAPSHOT` (the session's persisted messages) + `RUN_FINISHED`, with no new turn run or saved. Such a request naming an empty or unknown `threadId` is a 400, since there is nothing to replay.
+// @Description A thread runs one turn at a time, but a message never has to wait for it. If a run is already in progress on the thread, the new message is handed to it — the model reads it before its next step — and this request answers immediately with an empty `RUN_STARTED` + `RUN_FINISHED`; the reply appears on the stream of the run that is in progress. A short stop message ("stop", "dừng", "hủy") interrupts the run in progress instead: it keeps what it produced and ends with a normal `RUN_FINISHED`, and the message then runs as a normal turn.
 // @Tags        AG-UI
 // @Accept      json
 // @Produce     text/event-stream
@@ -229,10 +230,7 @@ func (h *Handlers) resolveAGUIThread(ctx context.Context, user domain.User, thre
 		}
 	}
 
-	title := firstText
-	if len(title) > 60 {
-		title = strings.TrimSpace(title[:60]) + "…"
-	}
+	title := sessionTitle(firstText, 60)
 	var meta map[string]any
 	if s := strings.TrimSpace(threadID); s != "" && parseErr != nil {
 		// Not a UUID, so it can't become the session's primary key — keep it

@@ -31,6 +31,9 @@ type ContextItem struct {
 // TurnContext is everything a section might need. It is assembled by the runner
 // before each model call.
 type TurnContext struct {
+	// MaxSteps is the most model calls this turn may make; 0 = not stated.
+	MaxSteps int
+
 	Now       time.Time
 	Provider  string
 	Model     string
@@ -177,13 +180,19 @@ func sectionToolGuidance(tc TurnContext) string {
 	if len(tc.Tools) == 0 {
 		return ""
 	}
-	return strings.TrimSpace(`
+	guide := strings.TrimSpace(`
 <tool_use>
 - Call a tool only when it materially improves the answer (fresh data, a computation, reading a specific URL, or loading a skill). For things you already know, answer directly.
 - When several independent tool calls are needed, request them together rather than one at a time.
 - Never invent tool output. If a tool errors or returns nothing useful, say so and proceed with your best effort.
 - Stop calling tools once you have what you need, then give the final answer.
 </tool_use>`)
+	if tc.MaxSteps > 0 {
+		// Said up front so the model plans for it, rather than meeting the limit
+		// as a surprise on its last call.
+		guide = strings.Replace(guide, "</tool_use>", fmt.Sprintf("- A turn allows at most %d model calls (every round of tool use is one) and the last has no tools. Plan for that: do the essential work first and leave room for a complete final answer.\n</tool_use>", tc.MaxSteps), 1)
+	}
+	return guide
 }
 
 // sectionAccuracy tells the model how to keep numbers and machine-readable

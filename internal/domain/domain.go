@@ -134,5 +134,8 @@ type AgentRun struct {
 	TokensOut int
 	LatencyMS int
 	Error     string
+	// Detail is how the turn ran: stop reason, sampling settings, tool calls,
+	// steering. Free-form so new observations need no migration.
+	Detail    map[string]any
 	CreatedAt time.Time
 }

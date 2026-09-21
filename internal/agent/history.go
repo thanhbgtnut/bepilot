@@ -49,6 +49,7 @@ func historyToMessages(msgs []domain.Message) []*schema.Message {
 				}
 			}
 			am.Content = text.String()
+			am.ToolCalls, toolMsgs = pairToolCalls(am.ToolCalls, toolMsgs)
 			if am.Content == "" && len(am.ToolCalls) == 0 && len(toolMsgs) == 0 {
 				continue
 			}
@@ -57,6 +58,35 @@ func historyToMessages(msgs []domain.Message) []*schema.Message {
 		}
 	}
 	return out
+}
+
+// pairToolCalls keeps only the tool calls that have a stored result, and only
+// the results that have a call. A turn that was interrupted, cancelled or failed
+// while a tool ran leaves a tool_use with no tool_result; sending that back
+// makes the provider reject the whole conversation ("tool_use ids were found
+// without tool_result blocks"), which would wedge the session for good.
+func pairToolCalls(calls []schema.ToolCall, results []*schema.Message) ([]schema.ToolCall, []*schema.Message) {
+	have := make(map[string]bool, len(results))
+	for _, r := range results {
+		have[r.ToolCallID] = true
+	}
+	var keptCalls []schema.ToolCall
+	called := make(map[string]bool, len(calls))
+	for _, c := range calls {
+		if have[c.ID] {
+			idx := len(keptCalls)
+			c.Index = &idx
+			keptCalls = append(keptCalls, c)
+			called[c.ID] = true
+		}
+	}
+	var keptResults []*schema.Message
+	for _, r := range results {
+		if called[r.ToolCallID] {
+			keptResults = append(keptResults, r)
+		}
+	}
+	return keptCalls, keptResults
 }
 
 // trimHistory keeps the most recent messages within a token budget. It never

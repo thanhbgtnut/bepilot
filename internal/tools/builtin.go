@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -104,6 +105,28 @@ func newHTTPFetchTool(allowlist []string) (tool.InvokableTool, error) {
 			}, nil
 		},
 	)
+}
+
+// maxFetchBytes caps how much of a response http_fetch returns.
+const maxFetchBytes = 200_000
+
+// bodyText turns a response body into valid UTF-8. The byte cap can cut a
+// multi-byte character in half, and pages in a legacy code page (Windows-125x)
+// contain bytes that are not UTF-8 at all; passing either on unchanged makes
+// the tool result impossible to store or to send to the model as JSON.
+func bodyText(b []byte, truncated bool) string {
+	if truncated {
+		// Drop a character cut by the cap rather than turning it into U+FFFD.
+		for i := 1; i <= utf8.UTFMax && i <= len(b); i++ {
+			if utf8.RuneStart(b[len(b)-i]) {
+				if !utf8.FullRune(b[len(b)-i:]) {
+					b = b[:len(b)-i]
+				}
+				break
+			}
+		}
+	}
+	return strings.ToValidUTF8(string(b), "\uFFFD")
 }
 
 func isPrivateHost(host string) bool {

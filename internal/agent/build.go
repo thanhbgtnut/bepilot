@@ -19,15 +19,26 @@ import (
 // the conversation on every model call. returnDirectly names tools whose call
 // ends the turn immediately instead of feeding a result back to the model —
 // used for AG-UI client-executed tools, which bepilot cannot run itself.
-func buildReactAgent(ctx context.Context, cm einomodel.ToolCallingChatModel, tools []einotool.BaseTool, systemPrompt string, maxStep int, returnDirectly map[string]struct{}) (*react.Agent, error) {
-	if maxStep <= 0 {
-		maxStep = 16
+//
+// maxModelCalls is the most times the turn may call the model (agent.max_steps
+// in the config). On the last one the model has no tools and must answer, so a
+// turn that runs out of budget still ends with a reply rather than an error.
+//
+// steer, when non-nil, is the inbox of messages the user sends while the turn is
+// running; the model reads them before its next step.
+func buildReactAgent(ctx context.Context, cm einomodel.ToolCallingChatModel, tools []einotool.BaseTool, systemPrompt string, maxModelCalls int, returnDirectly map[string]struct{}, steer ...*steerer) (*react.Agent, error) {
+	if maxModelCalls <= 0 {
+		maxModelCalls = 16
+	}
+	var inbox *steerer
+	if len(steer) > 0 {
+		inbox = steer[0]
 	}
 	return react.NewAgent(ctx, &react.AgentConfig{
-		ToolCallingModel:   cm,
+		ToolCallingModel:   newBudgetModel(cm, maxModelCalls, inbox),
 		ToolsConfig:        compose.ToolsNodeConfig{Tools: softenToolErrors(tools)},
 		ToolReturnDirectly: returnDirectly,
-		MaxStep:            maxStep,
+		MaxStep:            graphStepsFor(maxModelCalls),
 		MessageModifier: func(_ context.Context, input []*schema.Message) []*schema.Message {
 			out := make([]*schema.Message, 0, len(input)+1)
 			out = append(out, schema.SystemMessage(systemPrompt))

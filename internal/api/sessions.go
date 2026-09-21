@@ -252,3 +252,15 @@ func decodeCursor(s string) time.Time {
 	}
 	return t
 }
+
+// sessionTitle derives a session title from the first user message: at most max
+// characters, cut on a character boundary. Slicing bytes instead would split a
+// multi-byte character (every Vietnamese diacritic is 2-3 bytes) and produce
+// invalid UTF-8, which Postgres rejects.
+func sessionTitle(firstText string, max int) string {
+	r := []rune(firstText)
+	if len(r) <= max {
+		return firstText
+	}
+	return strings.TrimSpace(string(r[:max])) + "…"
+}

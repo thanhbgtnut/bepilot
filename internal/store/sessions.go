@@ -39,7 +39,7 @@ func (r *SessionsRepo) Create(ctx context.Context, p CreateParams) (domain.Sessi
 	if meta == nil {
 		meta = map[string]any{}
 	}
-	metaJSON, _ := json.Marshal(meta)
+	metaJSON, _ := cleanJSON(meta)
 
 	id := p.ID
 	if id == uuid.Nil {
@@ -51,7 +51,7 @@ func (r *SessionsRepo) Create(ctx context.Context, p CreateParams) (domain.Sessi
 		INSERT INTO sessions (id, user_id, title, provider, model, system_override, metadata)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, user_id, title, provider, model, system_override, summary, metadata, created_at, updated_at`,
-		id, p.UserID, p.Title, p.Provider, p.Model, p.SystemOverride, metaJSON,
+		id, p.UserID, cleanText(p.Title), cleanText(p.Provider), cleanText(p.Model), cleanText(p.SystemOverride), metaJSON,
 	).Scan(&s.ID, &s.UserID, &s.Title, &s.Provider, &s.Model, &s.SystemOverride, &s.Summary, &metaScanner{&s.Metadata}, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return domain.Session{}, fmt.Errorf("sessions.Create: %w", err)
@@ -121,8 +121,9 @@ type UpdateParams struct {
 func (r *SessionsRepo) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (domain.Session, error) {
 	var metaJSON []byte
 	if p.Metadata != nil {
-		metaJSON, _ = json.Marshal(p.Metadata)
+		metaJSON, _ = cleanJSON(p.Metadata)
 	}
+	title, summary := cleanPtr(p.Title), cleanPtr(p.Summary)
 	var s domain.Session
 	err := r.pool.QueryRow(ctx, `
 		UPDATE sessions SET
@@ -132,7 +133,7 @@ func (r *SessionsRepo) Update(ctx context.Context, id uuid.UUID, p UpdateParams)
 			updated_at = now()
 		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, user_id, title, provider, model, system_override, summary, metadata, created_at, updated_at`,
-		id, p.Title, p.Summary, metaJSON,
+		id, title, summary, metaJSON,
 	).Scan(&s.ID, &s.UserID, &s.Title, &s.Provider, &s.Model, &s.SystemOverride, &s.Summary,
 		&metaScanner{&s.Metadata}, &s.CreatedAt, &s.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
