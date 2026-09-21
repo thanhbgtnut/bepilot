@@ -75,7 +75,6 @@ func (h *Handlers) AddMCPServer(ctx context.Context, c *app.RequestContext) {
 		URL:           req.URL,
 		Headers:       req.Headers,
 		ToolAllowlist: req.ToolAllowlist,
-		AlwaysBound:   req.AlwaysBound,
 	}
 	if err := spec.Validate(); err != nil {
 		h.badRequest(c, err.Error())
@@ -198,9 +197,6 @@ func specToMap(s config.MCPServerSpec) map[string]any {
 	}
 	if len(s.ToolAllowlist) > 0 {
 		m["tool_allowlist"] = s.ToolAllowlist
-	}
-	if s.AlwaysBound != nil {
-		m["always_bound"] = *s.AlwaysBound
 	}
 	return m
 }

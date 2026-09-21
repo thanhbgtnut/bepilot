@@ -18,7 +18,6 @@ type MCPServerRequest struct {
 	Headers map[string]string `json:"headers,omitempty"`
 
 	ToolAllowlist []string `json:"tool_allowlist,omitempty"`
-	AlwaysBound   *bool    `json:"always_bound,omitempty"`
 }
 
 // MCPServerView is one attached server as returned by the MCP endpoints.

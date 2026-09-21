@@ -15,7 +15,7 @@ func TestAssemblerTextThenToolThenText(t *testing.T) {
 	var kinds []events.Kind
 	a := newAssembler(func(e events.Event) { kinds = append(kinds, e.Kind) })
 
-	a.messageStart("msg_1", "m", 10)
+	a.messageStart("msg_1", "m", "sess_1", 10)
 
 	// model call 1: text, then a tool call streamed in fragments
 	a.modelChunk(&schema.Message{Content: "Let me "})
@@ -37,6 +37,10 @@ func TestAssemblerTextThenToolThenText(t *testing.T) {
 	a.modelCallDone("stop", &schema.TokenUsage{PromptTokens: 150, CompletionTokens: 8})
 
 	a.finish("end_turn")
+	// Production code persists the assistant message between finish()/fail()
+	// and emitStop() (see assembler.emitStop's doc) — call it here after
+	// finish() too so this test still observes the terminal SSE events.
+	a.emitStop()
 
 	blocks, stats := a.result("end_turn")
 

@@ -32,6 +32,7 @@ type Event struct {
 	// MessageStart
 	MessageID string
 	Model     string
+	SessionID string // bepilot extension: lets a streaming client learn/confirm the session a turn landed in
 
 	// Content block framing
 	Index     int

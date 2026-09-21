@@ -19,6 +19,12 @@ type SessionsRepo struct{ pool *pgxpool.Pool }
 
 // CreateParams are the writable fields when creating a session.
 type CreateParams struct {
+	// ID pins the new session to a specific id — used when a caller (e.g. an
+	// AG-UI client) already minted a thread id of its own and must see that
+	// same id come back as the session id, so a later request carrying it
+	// resolves to this session instead of spawning another one. Zero value
+	// (uuid.Nil) lets Postgres generate one as usual.
+	ID             uuid.UUID
 	UserID         uuid.UUID
 	Title          string
 	Provider       string
@@ -35,12 +41,17 @@ func (r *SessionsRepo) Create(ctx context.Context, p CreateParams) (domain.Sessi
 	}
 	metaJSON, _ := json.Marshal(meta)
 
+	id := p.ID
+	if id == uuid.Nil {
+		id = uuid.New()
+	}
+
 	var s domain.Session
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO sessions (user_id, title, provider, model, system_override, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO sessions (id, user_id, title, provider, model, system_override, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, user_id, title, provider, model, system_override, summary, metadata, created_at, updated_at`,
-		p.UserID, p.Title, p.Provider, p.Model, p.SystemOverride, metaJSON,
+		id, p.UserID, p.Title, p.Provider, p.Model, p.SystemOverride, metaJSON,
 	).Scan(&s.ID, &s.UserID, &s.Title, &s.Provider, &s.Model, &s.SystemOverride, &s.Summary, &metaScanner{&s.Metadata}, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return domain.Session{}, fmt.Errorf("sessions.Create: %w", err)

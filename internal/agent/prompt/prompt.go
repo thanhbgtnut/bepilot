@@ -44,9 +44,12 @@ type TurnContext struct {
 	SystemOverride string // per-session override/extension
 	Summary        string // rolling summary of older turns
 
-	Tools  map[string]string // name -> description
-	Skills []SkillRef
-	Memory []string
+	Tools map[string]string // name -> description of tools bound to the model this turn
+	// DeferredTools are external tools (MCP etc.) whose schemas are not loaded;
+	// only their names are shown and the model must load one with tool_search.
+	DeferredTools []string
+	Skills        []SkillRef
+	Memory        []string
 
 	Context []ContextItem // client-supplied situational notes (AG-UI `context`)
 	State   string        // client-supplied state, pre-serialized JSON (AG-UI `state`)
@@ -63,6 +66,7 @@ var DefaultSections = []Section{
 	sectionClientState,
 	sectionMemory,
 	sectionToolGuidance,
+	sectionDeferredTools,
 	sectionSkillIndex,
 	sectionResponseStyle,
 	sectionSystemOverride,
@@ -179,6 +183,36 @@ func sectionToolGuidance(tc TurnContext) string {
 - Never invent tool output. If a tool errors or returns nothing useful, say so and proceed with your best effort.
 - Stop calling tools once you have what you need, then give the final answer.
 </tool_use>`)
+}
+
+// maxListedDeferred caps how many deferred tool names are spelled out in the
+// prompt; the rest are still reachable through tool_search.
+const maxListedDeferred = 300
+
+func sectionDeferredTools(tc TurnContext) string {
+	if len(tc.DeferredTools) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(`
+<deferred_tools>
+More tools are available, but their schemas are not loaded, so you cannot call them yet. To use one: call tool_search first — with "select:<name>[,<name>...]" for exact names below, or with keywords (prefix a keyword with + to require it in the name) — then call the loaded tool on your next step. Never guess a deferred tool's arguments; use the input_schema tool_search returns.
+`))
+	b.WriteString("\n")
+	names := tc.DeferredTools
+	extra := 0
+	if len(names) > maxListedDeferred {
+		extra = len(names) - maxListedDeferred
+		names = names[:maxListedDeferred]
+	}
+	for _, n := range names {
+		fmt.Fprintf(&b, "- %s\n", n)
+	}
+	if extra > 0 {
+		fmt.Fprintf(&b, "- … and %d more (find them with tool_search keywords)\n", extra)
+	}
+	b.WriteString("</deferred_tools>")
+	return b.String()
 }
 
 func sectionSkillIndex(tc TurnContext) string {

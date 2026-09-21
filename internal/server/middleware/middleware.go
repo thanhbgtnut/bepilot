@@ -5,6 +5,7 @@ package middleware
 import (
 	"context"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -15,6 +16,13 @@ import (
 	"github.com/thanhenti/bepilot/internal/api/dto"
 	"github.com/thanhenti/bepilot/internal/domain"
 	"github.com/thanhenti/bepilot/internal/store"
+)
+
+// devBypassEmail/devBypassName identify the fixed local user that stands in
+// for authentication when Auth's bypass flag is set.
+const (
+	devBypassEmail = "dev-bypass@bepilot.local"
+	devBypassName  = "Dev Bypass User"
 )
 
 type ctxKey string
@@ -102,8 +110,29 @@ func CORS(origins []string) app.HandlerFunc {
 
 // Auth resolves the x-api-key header (falling back to Authorization: Bearer) to
 // a user and stores it in the request context.
-func Auth(keys *store.APIKeysRepo) app.HandlerFunc {
+//
+// When bypass is true (BEPILOT_AUTH_BYPASS=true), the check is skipped
+// entirely: every request is treated as a fixed local dev user, created once
+// on first use. This is a local-development convenience only — never enable
+// it in a deployed environment, since it removes all request authentication.
+func Auth(keys *store.APIKeysRepo, users *store.UsersRepo, bypass bool) app.HandlerFunc {
+	var (
+		once    sync.Once
+		devUser domain.User
+		devErr  error
+	)
 	return func(ctx context.Context, c *app.RequestContext) {
+		if bypass {
+			once.Do(func() { devUser, devErr = users.Create(ctx, devBypassEmail, devBypassName) })
+			if devErr != nil {
+				c.AbortWithStatusJSON(consts.StatusInternalServerError, dto.NewError("internal_server_error", "auth bypass: "+devErr.Error()))
+				return
+			}
+			c.Set(string(keyUser), devUser)
+			c.Next(ctx)
+			return
+		}
+
 		raw := string(c.GetHeader("x-api-key"))
 		if raw == "" {
 			if b := string(c.GetHeader("Authorization")); len(b) > 7 && b[:7] == "Bearer " {

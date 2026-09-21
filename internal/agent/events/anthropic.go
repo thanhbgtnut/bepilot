@@ -36,7 +36,13 @@ func (m *AnthropicMapper) Map(ev Event) []*sse.Event {
 		return m.frame("message_start", map[string]any{
 			"type": "message_start",
 			"message": map[string]any{
-				"id":            ev.MessageID,
+				"id": ev.MessageID,
+				// session_id is a bepilot extension (standard Anthropic clients
+				// ignore unknown fields): the only place a streaming /v1/messages
+				// call surfaces which session a new turn landed in, since — unlike
+				// the buffered response's `session` field — nothing else in this
+				// event stream carries it.
+				"session_id":    ev.SessionID,
 				"type":          "message",
 				"role":          "assistant",
 				"model":         ev.Model,

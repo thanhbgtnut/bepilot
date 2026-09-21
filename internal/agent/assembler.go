@@ -33,6 +33,8 @@ type assembler struct {
 	lastFinish   string
 	steps        int
 	failed       bool
+	failErrType  string
+	failErrMsg   string
 }
 
 type openBlock struct {
@@ -60,11 +62,11 @@ func newAssembler(emit events.Sink) *assembler {
 	return &assembler{emit: emit}
 }
 
-func (a *assembler) messageStart(messageID, model string, inputTokens int) {
+func (a *assembler) messageStart(messageID, model, sessionID string, inputTokens int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.inputTokens = inputTokens
-	a.emit(events.Event{Kind: events.KindMessageStart, MessageID: messageID, Model: model, Usage: domain.Usage{InputTokens: inputTokens}})
+	a.emit(events.Event{Kind: events.KindMessageStart, MessageID: messageID, Model: model, SessionID: sessionID, Usage: domain.Usage{InputTokens: inputTokens}})
 }
 
 // modelChunk handles one streamed message chunk from a model call.
@@ -166,6 +168,9 @@ func (a *assembler) toolEnd(name, response string, isErr bool) {
 	})
 }
 
+// finish closes any open block and resolves the run's final stop reason.
+// It deliberately does NOT emit the terminal SSE event (that's emitStop) —
+// see emitStop's doc for why the two are split.
 func (a *assembler) finish(defaultFinish string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -174,19 +179,47 @@ func (a *assembler) finish(defaultFinish string) {
 	if reason == "" {
 		reason = defaultFinish
 	}
-	a.emit(events.Event{
-		Kind: events.KindMessageDelta, StopReason: reason,
-		Usage: domain.Usage{InputTokens: a.inputTokens, OutputTokens: a.outputTokens},
-	})
-	a.emit(events.Event{Kind: events.KindMessageStop})
+	a.lastFinish = reason
 }
 
+// fail closes any open block and marks the run as failed. Like finish, it
+// does NOT emit the terminal SSE event — see emitStop.
 func (a *assembler) fail(errType, msg string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.failed = true
+	a.failErrType = errType
+	a.failErrMsg = msg
 	a.closeLocked()
-	a.emit(events.Event{Kind: events.KindError, ErrType: errType, ErrMessage: msg})
+}
+
+// emitStop emits the terminal SSE event for this turn: KindMessageStop
+// (AG-UI RUN_FINISHED) on success, or KindError (AG-UI RUN_ERROR) if fail()
+// was called.
+//
+// Callers MUST persist the assistant message (via result(), which reads the
+// same blocks finish()/fail() just closed) BEFORE calling this. An AG-UI
+// client legitimately treats RUN_FINISHED/RUN_ERROR as "the turn is done,
+// safe to read back" and may immediately re-fetch the session over REST to
+// restore or verify its view (bepilot's own frontend does exactly this).
+// Emitting the terminal event before the message.Append transaction commits
+// lets that re-fetch land in the gap and see the turn as if it never
+// happened. This is not hypothetical: it was reproduced live — a turn with
+// many tool calls took long enough to persist (one INSERT per content
+// block) that a client re-fetch right after RUN_FINISHED consistently saw
+// only the user's message, wiping the assistant's reply from the UI.
+func (a *assembler) emitStop() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.failed {
+		a.emit(events.Event{Kind: events.KindError, ErrType: a.failErrType, ErrMessage: a.failErrMsg})
+		return
+	}
+	a.emit(events.Event{
+		Kind: events.KindMessageDelta, StopReason: a.lastFinish,
+		Usage: domain.Usage{InputTokens: a.inputTokens, OutputTokens: a.outputTokens},
+	})
+	a.emit(events.Event{Kind: events.KindMessageStop})
 }
 
 // --- locked helpers -------------------------------------------------------—-

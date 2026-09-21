@@ -1,6 +1,7 @@
 package prompt
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -51,5 +52,28 @@ func TestSystemOverrideAppended(t *testing.T) {
 	out := Build(tc)
 	if !strings.Contains(out, "<session_instructions>") || !strings.Contains(out, "French") {
 		t.Fatalf("override not appended:\n%s", out)
+	}
+}
+
+func TestDeferredToolsSection(t *testing.T) {
+	none := Build(TurnContext{Now: time.Now(), Tools: map[string]string{"current_time": "x"}})
+	if strings.Contains(none, "deferred_tools") || strings.Contains(none, "tool_search") {
+		t.Errorf("no deferred tools: section must be omitted entirely:\n%s", none)
+	}
+
+	with := Build(TurnContext{Now: time.Now(), DeferredTools: []string{"mcp__a__b", "mcp__a__c"}})
+	for _, want := range []string{"<deferred_tools>", "tool_search", "- mcp__a__b", "- mcp__a__c"} {
+		if !strings.Contains(with, want) {
+			t.Errorf("missing %q in:\n%s", want, with)
+		}
+	}
+
+	many := make([]string, maxListedDeferred+7)
+	for i := range many {
+		many[i] = fmt.Sprintf("mcp__s__t%04d", i)
+	}
+	capped := Build(TurnContext{Now: time.Now(), DeferredTools: many})
+	if !strings.Contains(capped, "and 7 more") || strings.Contains(capped, many[len(many)-1]) {
+		t.Errorf("cap not applied")
 	}
 }

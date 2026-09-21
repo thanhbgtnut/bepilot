@@ -2,9 +2,11 @@
 //
 // Each server is dialed once, its tools are discovered and registered into the
 // shared tools.Registry under a namespaced name ("<prefix><server>__<tool>"),
-// and stay available until the server is removed. Because the agent resolves
-// tools from the registry on every turn, adding or removing a server takes
-// effect on the next message with no restart.
+// and stay available until the server is removed. They are registered as
+// deferred tools: the model only sees their names and must load one with the
+// built-in tool_search before calling it. Because the agent snapshots the
+// registry on every turn, adding or removing a server takes effect on the next
+// message with no restart.
 //
 // Servers arrive from two sources, both hot: the config file (source "file",
 // reconciled by Watcher) and the API (source "api", persisted in the database).
@@ -216,7 +218,7 @@ func (m *Manager) addLocked(ctx context.Context, spec config.MCPServerSpec, sour
 			return fmt.Errorf("tool info from mcp server %q: %w", spec.Name, err)
 		}
 		pname := fmt.Sprintf("%s%s__%s", m.prefix, spec.Name, info.Name)
-		if _, err := m.reg.Register(ctx, tools.Prefixed(inv, pname), spec.BoundByDefault()); err != nil {
+		if _, err := m.reg.Register(ctx, tools.Prefixed(inv, pname)); err != nil {
 			m.reg.Unregister(names...)
 			_ = cli.Close()
 			return fmt.Errorf("register tool %q: %w", pname, err)

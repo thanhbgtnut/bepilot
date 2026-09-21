@@ -11,6 +11,9 @@ http:
   write_timeout: 0s          # keep 0 for SSE
   shutdown_timeout: 20s
   cors_origins: []           # empty = allow any origin
+  # DEV ONLY: skips x-api-key verification entirely when true. Never enable
+  # this in a deployed environment.
+  auth_bypass: ${BEPILOT_AUTH_BYPASS}   # empty/false = auth required (default)
 
 db:
   dsn: ${DATABASE_URL}

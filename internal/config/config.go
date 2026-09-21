@@ -77,14 +77,7 @@ type MCPServerSpec struct {
 	// ToolAllowlist, when non-empty, imports only these tool names from the
 	// server (matched against the server-side name, before prefixing).
 	ToolAllowlist []string `yaml:"tool_allowlist" json:"tool_allowlist,omitempty"`
-	// AlwaysBound controls whether the server's tools are offered to the model
-	// on every turn. Defaults to true; set false to only expose them to skills
-	// that list the (prefixed) tool name.
-	AlwaysBound *bool `yaml:"always_bound" json:"always_bound,omitempty"`
 }
-
-// BoundByDefault reports the effective AlwaysBound value (nil means true).
-func (s MCPServerSpec) BoundByDefault() bool { return s.AlwaysBound == nil || *s.AlwaysBound }
 
 // Validate checks a single server spec.
 func (s MCPServerSpec) Validate() error {
@@ -118,6 +111,10 @@ type HTTP struct {
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
 	CORSOrigins     []string      `yaml:"cors_origins"`
+	// AuthBypass skips x-api-key verification entirely and treats every
+	// request as a fixed local dev user. Dev-only — never set this in a
+	// deployed environment.
+	AuthBypass bool `yaml:"auth_bypass"`
 }
 
 // DB holds Postgres connection settings.

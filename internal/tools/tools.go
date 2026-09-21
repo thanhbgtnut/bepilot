@@ -1,40 +1,57 @@
-// Package tools provides the built-in tool set and a registry that resolves
-// tool names (including per-skill allowed tools) to eino tool implementations.
+// Package tools provides the built-in tool set, the registry that owns every
+// tool the process knows about, and the tool-search mechanism that gates
+// external tools.
 //
-// The registry is safe for concurrent use: built-in tools are added once at
-// startup, and dynamic sources (e.g. MCP servers) may Register/Unregister tools
-// at runtime without restarting the process. The agent resolves tools from the
-// registry on every turn, so newly registered tools are visible on the next
-// request.
+// Tools live in one of two tiers:
+//
+//   - Built-in tools (current_time, http_fetch, load_skill, web_search and
+//     tool_search itself) are bound to the model on every turn.
+//   - Deferred tools are everything registered at runtime — MCP servers and any
+//     other external source. Their schemas are NOT sent to the model up front;
+//     only their names are listed in the prompt. To use one, the model first
+//     calls the built-in tool_search tool, which loads the matching tools'
+//     schemas into the current Session so they can be called on the next step.
+//     This keeps the context small no matter how many tools MCP servers expose.
+//
+// The registry is safe for concurrent use: built-ins are added once at startup,
+// and dynamic sources may Register/Unregister deferred tools at runtime without
+// restarting the process. Each agent turn takes a Session snapshot of the
+// registry, so newly registered tools are discoverable on the next request.
 package tools
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/cloudwego/eino/components/tool"
+	"github.com/cloudwego/eino/schema"
 
 	"github.com/thanhenti/bepilot/internal/skills"
 )
 
-// builtinAlwaysBound are the built-in tools bound to every request regardless of
-// retrieval. Kept intentionally small so the model chooses among them naturally.
-var builtinAlwaysBound = []string{"current_time", "http_fetch", "load_skill", "web_search"}
+// Entry is one registered tool with its cached Info.
+type Entry struct {
+	Name string
+	Desc string
+	Info *schema.ToolInfo
+	tool tool.InvokableTool
+}
 
 // Registry owns the process-wide set of tools.
 type Registry struct {
-	mu          sync.RWMutex
-	byName      map[string]tool.BaseTool
-	alwaysBound []string // names bound on every turn (built-ins + dynamic)
+	mu       sync.RWMutex
+	builtin  map[string]*Entry
+	deferred map[string]*Entry
 }
 
-// NewRegistry builds the default tool set. httpAllowlist limits http_fetch to
+// NewRegistry builds the built-in tool set. httpAllowlist limits http_fetch to
 // the given hosts (empty = allow any host, which is only sensible in dev).
 func NewRegistry(skillSvc *skills.Service, httpAllowlist []string) (*Registry, error) {
 	r := &Registry{
-		byName:      map[string]tool.BaseTool{},
-		alwaysBound: append([]string{}, builtinAlwaysBound...),
+		builtin:  map[string]*Entry{},
+		deferred: map[string]*Entry{},
 	}
 
 	ct, err := newCurrentTimeTool()
@@ -53,108 +70,73 @@ func NewRegistry(skillSvc *skills.Service, httpAllowlist []string) (*Registry, e
 	if err != nil {
 		return nil, err
 	}
-	for _, t := range []tool.InvokableTool{ct, hf, ls, ws} {
-		info, err := t.Info(context.Background())
+	ts, err := newToolSearchTool(r)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range []tool.InvokableTool{ct, hf, ls, ws, ts} {
+		e, err := newEntry(context.Background(), t)
 		if err != nil {
 			return nil, err
 		}
-		r.byName[info.Name] = t
+		r.builtin[e.Name] = e
 	}
 	return r, nil
 }
 
-// Register adds (or replaces) a tool. When alwaysBind is true the tool is bound
-// on every turn; otherwise it is only bound when a skill lists it or a caller
-// requests it by name. It returns the resolved tool name.
-func (r *Registry) Register(ctx context.Context, t tool.BaseTool, alwaysBind bool) (string, error) {
-	info, err := t.Info(ctx)
+// Register adds (or replaces) a deferred tool: it is discoverable through
+// tool_search but never bound to the model until discovered. It returns the
+// resolved tool name. A name that collides with a built-in tool is rejected.
+func (r *Registry) Register(ctx context.Context, t tool.InvokableTool) (string, error) {
+	e, err := newEntry(ctx, t)
 	if err != nil {
 		return "", err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.byName[info.Name] = t
-	if alwaysBind {
-		r.addAlwaysBoundLocked(info.Name)
+	if _, ok := r.builtin[e.Name]; ok {
+		return "", fmt.Errorf("tool %q collides with a built-in tool", e.Name)
 	}
-	return info.Name, nil
+	r.deferred[e.Name] = e
+	return e.Name, nil
 }
 
-// Unregister removes tools by name (and drops them from the always-bound set).
+// Unregister removes deferred tools by name. Built-in tools cannot be removed.
 func (r *Registry) Unregister(names ...string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, n := range names {
-		delete(r.byName, n)
-		for i, b := range r.alwaysBound {
-			if b == n {
-				r.alwaysBound = append(r.alwaysBound[:i], r.alwaysBound[i+1:]...)
-				break
-			}
-		}
+		delete(r.deferred, n)
 	}
 }
 
-func (r *Registry) addAlwaysBoundLocked(name string) {
-	for _, b := range r.alwaysBound {
-		if b == name {
-			return
-		}
-	}
-	r.alwaysBound = append(r.alwaysBound, name)
-}
-
-// AlwaysBoundNames returns a copy of the names bound on every turn.
-func (r *Registry) AlwaysBoundNames() []string {
+// Builtin returns the built-in tools, sorted by name.
+func (r *Registry) Builtin() []*Entry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return append([]string{}, r.alwaysBound...)
+	return sortedEntries(r.builtin)
 }
 
-// AlwaysBound resolves the always-bound names to tools.
-func (r *Registry) AlwaysBound() []tool.BaseTool {
-	return r.ByNames(r.AlwaysBoundNames())
-}
-
-// ByNames resolves a list of tool names to tools, skipping unknown names.
-func (r *Registry) ByNames(names []string) []tool.BaseTool {
+// Deferred returns the deferred (externally registered) tools, sorted by name.
+func (r *Registry) Deferred() []*Entry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var out []tool.BaseTool
-	seen := map[string]bool{}
-	for _, n := range names {
-		if seen[n] {
-			continue
-		}
-		if t, ok := r.byName[n]; ok {
-			seen[n] = true
-			out = append(out, t)
-		}
-	}
-	return out
+	return sortedEntries(r.deferred)
 }
 
-// Names lists every registered tool name, sorted.
-func (r *Registry) Names() []string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	out := make([]string, 0, len(r.byName))
-	for n := range r.byName {
-		out = append(out, n)
+func newEntry(ctx context.Context, t tool.InvokableTool) (*Entry, error) {
+	info, err := t.Info(ctx)
+	if err != nil {
+		return nil, err
 	}
-	sort.Strings(out)
-	return out
+	return &Entry{Name: info.Name, Desc: info.Desc, Info: info, tool: t}, nil
 }
 
-// Describe returns name→description for prompt construction.
-func (r *Registry) Describe() map[string]string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	out := map[string]string{}
-	for n, t := range r.byName {
-		if info, err := t.Info(context.Background()); err == nil {
-			out[n] = info.Desc
-		}
+func sortedEntries(m map[string]*Entry) []*Entry {
+	out := make([]*Entry, 0, len(m))
+	for _, e := range m {
+		out = append(out, e)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }

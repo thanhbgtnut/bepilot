@@ -8,6 +8,7 @@ import (
 	"github.com/cloudwego/eino/callbacks"
 	einomodel "github.com/cloudwego/eino/components/model"
 	einotool "github.com/cloudwego/eino/components/tool"
+	toolutils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
@@ -24,7 +25,7 @@ func buildReactAgent(ctx context.Context, cm einomodel.ToolCallingChatModel, too
 	}
 	return react.NewAgent(ctx, &react.AgentConfig{
 		ToolCallingModel:   cm,
-		ToolsConfig:        compose.ToolsNodeConfig{Tools: tools},
+		ToolsConfig:        compose.ToolsNodeConfig{Tools: softenToolErrors(tools)},
 		ToolReturnDirectly: returnDirectly,
 		MaxStep:            maxStep,
 		MessageModifier: func(_ context.Context, input []*schema.Message) []*schema.Message {
@@ -37,6 +38,23 @@ func buildReactAgent(ctx context.Context, cm einomodel.ToolCallingChatModel, too
 		// whole stream and reports whether any tool call appeared.
 		StreamToolCallChecker: bufferedToolCallChecker,
 	})
+}
+
+// softenToolErrors wraps every tool so a failed call (bad arguments, a
+// not-found skill slug, a network error, ...) becomes a normal tool result
+// the model can read and react to, instead of a hard error. Without this,
+// eino's ToolsNode.Invoke treats any non-interrupt tool error as fatal and
+// aborts the whole ReAct run — one bad load_skill slug would end the entire
+// turn with RUN_ERROR rather than letting the model see "not found" and try
+// something else or answer without it.
+func softenToolErrors(tools []einotool.BaseTool) []einotool.BaseTool {
+	out := make([]einotool.BaseTool, len(tools))
+	for i, t := range tools {
+		out[i] = toolutils.WrapToolWithErrorHandler(t, func(_ context.Context, err error) string {
+			return "error: " + err.Error()
+		})
+	}
+	return out
 }
 
 func bufferedToolCallChecker(_ context.Context, sr *schema.StreamReader[*schema.Message]) (bool, error) {

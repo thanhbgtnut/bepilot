@@ -44,7 +44,7 @@ func New(cfg appcfg.HTTP, h *api.Handlers, log *slog.Logger) *server.Hertz {
 	hz.GET("/openapi.yaml", h.OpenAPISpec)
 	hz.GET("/docs", h.DocsRedirect)
 
-	v1 := hz.Group("/v1", middleware.Auth(h.Store.APIKeys))
+	v1 := hz.Group("/v1", middleware.Auth(h.Store.APIKeys, h.Store.Users, cfg.AuthBypass))
 	{
 		v1.POST("/messages", h.Messages)
 

@@ -36,8 +36,8 @@ can list a user's chats and replay full transcripts.
 |---|---|
 | **Dynamic system prompt** | Rebuilt every turn from ordered sections (`internal/agent/prompt`): identity, a live `<environment>` block (date/time, model, session, tools), rolling conversation summary, tool-use guidance, a **retrieved skill index**, response style, and per-session instructions. |
 | **Automatic skill discovery** | Every turn, the current conversation (last user message + rolling summary) is embedded and matched against skill descriptions via pgvector. Relevant skills are named in the prompt and loadable with the `load_skill` tool — **the user never has to mention a skill by name**. A skill's `allowed_tools` are bound automatically when it is retrieved. |
-| **Automatic tool selection** | A small always-bound tool set (`current_time`, `http_fetch`, `web_search`, `load_skill`) plus per-skill tools; the model chooses. |
-| **MCP servers, hot-attached** | Model Context Protocol servers (stdio / SSE / streamable HTTP) declared in a config file **or** added at runtime via `POST /v1/mcp/servers`. Their tools register into the shared tool registry as `mcp__<server>__<tool>` and are picked up on the next message — **no restart**. See [MCP servers](#mcp-servers). |
+| **Tool search** | Built-in tools (`current_time`, `http_fetch`, `web_search`, `load_skill`, `tool_search`) are always bound. External tools (MCP servers etc.) are *deferred*: only their names appear in the prompt, and the model loads the ones it needs with the built-in `tool_search` tool (`select:<name>` or keywords) before calling them — so the context stays small however many tools are attached. With no external tools attached, nothing changes and `tool_search` is not offered. A skill's `allowed_tools` are loaded automatically. |
+| **MCP servers, hot-attached** | Model Context Protocol servers (stdio / SSE / streamable HTTP) declared in a config file **or** added at runtime via `POST /v1/mcp/servers`. Their tools register into the shared tool registry as `mcp__<server>__<tool>` as *deferred* tools (discovered via `tool_search`) and are picked up on the next message — **no restart**. See [MCP servers](#mcp-servers). |
 | **True streaming** | The Eino ReAct loop runs in streaming mode; a callback handler turns every model delta and tool call/result into an internal event stream that is mapped to Anthropic SSE frames (`message_start` → `content_block_*` → `message_delta` → `message_stop`), with `tool_execution_start` / `tool_execution_stop` extension events for progress. |
 | **Context management** | History is loaded from Postgres, converted to a well-formed transcript, and trimmed to a token budget; a background job refreshes a rolling summary every N turns. |
 | **Multi-provider, runtime-selectable** | `claude`, `openai`-compatible, `ark` (Volcengine), and a deterministic `fake` provider for offline dev/tests. Pick per request (`"provider"`) or via config default. |
@@ -263,8 +263,12 @@ reconciles Postgres and (re)computes embeddings by checksum.
 
 bepilot can attach external **[Model Context Protocol](https://modelcontextprotocol.io)**
 servers and expose their tools to the agent. Tools import under a namespaced
-name — `mcp__<server>__<tool>` — so servers never collide, and they are bound on
-every turn by default (like the built-in tools).
+name — `mcp__<server>__<tool>` — so servers never collide. They are *deferred*:
+the prompt lists only their names, and the model loads a tool's schema with the
+built-in `tool_search` (`select:<name>` or keywords, `+word` to require a name
+match) before calling it. A tool loaded in one turn stays loaded for the rest of
+the conversation. MCP is optional — with no servers attached, `tool_search` is
+simply not offered and only the built-in tools are bound.
 
 **The key property: adding or removing a server never needs a restart.** The
 agent resolves tools from the shared registry on every message, so a
@@ -319,8 +323,6 @@ servers:
   - name: internal
     transport: sse
     url: http://127.0.0.1:9000/sse
-    always_bound: false      # tools exist but are only offered to skills that
-                             # list e.g. mcp__internal__<tool> in allowed_tools
 
   - name: experimental
     transport: stdio

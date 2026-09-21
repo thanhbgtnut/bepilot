@@ -42,7 +42,5 @@ servers: []
 #   - name: internal
 #     transport: sse
 #     url: http://127.0.0.1:9000/sse
-#     always_bound: false      # tools exist but are only offered to skills that
-#                              # list e.g. mcp__internal__<tool>
 #
 # disabled: true keeps an entry in the file without attaching it.
