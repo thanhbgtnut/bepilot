@@ -54,7 +54,7 @@ func TestNoExternalTools(t *testing.T) {
 	if s.Visible(ToolSearchName) {
 		t.Error("tool_search should be hidden when there is nothing to search")
 	}
-	for _, n := range []string{"current_time", "http_fetch", "load_skill", "web_search"} {
+	for _, n := range []string{"current_time", "calculate", "json_validate", "http_fetch", "load_skill", "web_search"} {
 		if !s.Visible(n) {
 			t.Errorf("built-in %s should be visible", n)
 		}
@@ -62,8 +62,8 @@ func TestNoExternalTools(t *testing.T) {
 	if got := s.DeferredNames(); len(got) != 0 {
 		t.Errorf("DeferredNames = %v, want none", got)
 	}
-	if got := len(s.Executable()); got != 5 {
-		t.Errorf("Executable = %d tools, want the 5 built-ins", got)
+	if got := len(s.Executable()); got != 7 {
+		t.Errorf("Executable = %d tools, want the 7 built-ins", got)
 	}
 
 	// Even if the model calls tool_search anyway, it degrades gracefully.
@@ -308,7 +308,7 @@ func TestWrapModelWithoutExternalToolsHidesToolSearch(t *testing.T) {
 			t.Errorf("tool_search bound with no deferred tools: %v", seen[0])
 		}
 	}
-	if len(seen[0]) != 4 {
-		t.Errorf("want the 4 other built-ins bound, got %v", seen[0])
+	if len(seen[0]) != 6 {
+		t.Errorf("want the 6 other built-ins bound, got %v", seen[0])
 	}
 }

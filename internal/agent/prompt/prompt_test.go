@@ -77,3 +77,24 @@ func TestDeferredToolsSection(t *testing.T) {
 		t.Errorf("cap not applied")
 	}
 }
+
+func TestAccuracySection(t *testing.T) {
+	// Without the tools the rules still apply, but no tool is named.
+	plain := Build(baseCtx())
+	if !strings.Contains(plain, "<accuracy>") || !strings.Contains(plain, "NEVER put an expression") {
+		t.Fatalf("JSON/arithmetic rules must always be present:\n%s", plain)
+	}
+	if strings.Contains(plain, "calculate tool") || strings.Contains(plain, "json_validate") {
+		t.Errorf("tools not bound this turn must not be mentioned:\n%s", plain)
+	}
+
+	tc := baseCtx()
+	tc.Tools["calculate"] = "math"
+	tc.Tools["json_validate"] = "json"
+	with := Build(tc)
+	for _, want := range []string{"calculate tool", "json_validate"} {
+		if !strings.Contains(with, want) {
+			t.Errorf("missing %q when the tool is bound:\n%s", want, with)
+		}
+	}
+}

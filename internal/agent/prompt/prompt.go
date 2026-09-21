@@ -66,6 +66,7 @@ var DefaultSections = []Section{
 	sectionClientState,
 	sectionMemory,
 	sectionToolGuidance,
+	sectionAccuracy,
 	sectionDeferredTools,
 	sectionSkillIndex,
 	sectionResponseStyle,
@@ -183,6 +184,30 @@ func sectionToolGuidance(tc TurnContext) string {
 - Never invent tool output. If a tool errors or returns nothing useful, say so and proceed with your best effort.
 - Stop calling tools once you have what you need, then give the final answer.
 </tool_use>`)
+}
+
+// sectionAccuracy tells the model how to keep numbers and machine-readable
+// output correct. Its arithmetic and JSON rules apply with or without tools; the
+// tool names are only mentioned when they are bound this turn.
+func sectionAccuracy(tc TurnContext) string {
+	_, hasCalc := tc.Tools["calculate"]
+	_, hasJSON := tc.Tools["json_validate"]
+
+	var b strings.Builder
+	b.WriteString("<accuracy>\n")
+	if hasCalc {
+		b.WriteString("- Never add, subtract, multiply, divide or compare multi-digit numbers in your head. Evaluate them with the calculate tool — batch every expression you need into one call — and copy its results. This includes totals, differences, percentages and every \"expected vs actual\" check.\n")
+		b.WriteString("- For a check, put the formula itself in calculate (e.g. `b + c`) and copy that value as \"expected\"; put `actual - expected` (with the numbers substituted) in the same call and copy it as \"difference\", keeping the sign the user defined. Do not evaluate only the residual: it hides the expected value and flips signs.\n")
+	} else {
+		b.WriteString("- Work through multi-digit arithmetic step by step and re-check each result before stating it; do not guess totals.\n")
+	}
+	b.WriteString("- When the user wants JSON (or any output a program will parse), emit strictly valid JSON: every value is a literal (number, string, true/false/null, object, array). NEVER put an expression such as `a + b` or `x - y` where a value goes — do the arithmetic first and write the resulting number. No comments, trailing commas, single quotes, or thousand separators in numbers (write 1547961374470, not 1.547.961.374.470). Do not add prose inside the JSON.\n")
+	if hasJSON {
+		b.WriteString("- Before sending a long or computed JSON document, run it through json_validate and fix whatever it reports.\n")
+	}
+	b.WriteString("- If asked for a check or reconciliation, report the computed values and the difference you actually calculated; only mark it passed when the difference is zero.\n")
+	b.WriteString("</accuracy>")
+	return b.String()
 }
 
 // maxListedDeferred caps how many deferred tool names are spelled out in the

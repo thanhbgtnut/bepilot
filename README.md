@@ -35,8 +35,9 @@ can list a user's chats and replay full transcripts.
 | Capability | How it works |
 |---|---|
 | **Dynamic system prompt** | Rebuilt every turn from ordered sections (`internal/agent/prompt`): identity, a live `<environment>` block (date/time, model, session, tools), rolling conversation summary, tool-use guidance, a **retrieved skill index**, response style, and per-session instructions. |
+| **Exact math & valid JSON** | The `calculate` tool evaluates arithmetic with exact big-rational math (many expressions per call, no float error), and `json_validate` reports the line/column and a fix hint for invalid JSON. An always-on `<accuracy>` prompt section tells the model to compute with `calculate` instead of in its head and to never write expressions like `a + b` inside JSON values. |
 | **Automatic skill discovery** | Every turn, the current conversation (last user message + rolling summary) is embedded and matched against skill descriptions via pgvector. Relevant skills are named in the prompt and loadable with the `load_skill` tool — **the user never has to mention a skill by name**. A skill's `allowed_tools` are bound automatically when it is retrieved. |
-| **Tool search** | Built-in tools (`current_time`, `http_fetch`, `web_search`, `load_skill`, `tool_search`) are always bound. External tools (MCP servers etc.) are *deferred*: only their names appear in the prompt, and the model loads the ones it needs with the built-in `tool_search` tool (`select:<name>` or keywords) before calling them — so the context stays small however many tools are attached. With no external tools attached, nothing changes and `tool_search` is not offered. A skill's `allowed_tools` are loaded automatically. |
+| **Tool search** | Built-in tools (`current_time`, `calculate`, `json_validate`, `http_fetch`, `web_search`, `load_skill`, `tool_search`) are always bound. External tools (MCP servers etc.) are *deferred*: only their names appear in the prompt, and the model loads the ones it needs with the built-in `tool_search` tool (`select:<name>` or keywords) before calling them — so the context stays small however many tools are attached. With no external tools attached, nothing changes and `tool_search` is not offered. A skill's `allowed_tools` are loaded automatically. |
 | **MCP servers, hot-attached** | Model Context Protocol servers (stdio / SSE / streamable HTTP) declared in a config file **or** added at runtime via `POST /v1/mcp/servers`. Their tools register into the shared tool registry as `mcp__<server>__<tool>` as *deferred* tools (discovered via `tool_search`) and are picked up on the next message — **no restart**. See [MCP servers](#mcp-servers). |
 | **True streaming** | The Eino ReAct loop runs in streaming mode; a callback handler turns every model delta and tool call/result into an internal event stream that is mapped to Anthropic SSE frames (`message_start` → `content_block_*` → `message_delta` → `message_stop`), with `tool_execution_start` / `tool_execution_stop` extension events for progress. |
 | **Context management** | History is loaded from Postgres, converted to a well-formed transcript, and trimmed to a token budget; a background job refreshes a rolling summary every N turns. |
@@ -396,7 +397,7 @@ reconstruction.
 
 - No rate limiting, org/multi-tenant model, or prompt caching yet.
 - `http_fetch` refuses loopback/private hosts; `web_search` is a stub until a
-  search backend is configured. There is no arbitrary code execution tool.
+  search backend is configured. There is no arbitrary code execution tool (`calculate` is a sandboxed arithmetic parser, not `eval`).
 - MCP tool calls are **not** sandboxed and inherit the server process's
   privileges — only attach servers you trust. Single-instance only: an
   API-registered server attaches to the process that received the call; other

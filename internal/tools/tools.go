@@ -4,8 +4,8 @@
 //
 // Tools live in one of two tiers:
 //
-//   - Built-in tools (current_time, http_fetch, load_skill, web_search and
-//     tool_search itself) are bound to the model on every turn.
+//   - Built-in tools (current_time, calculate, json_validate, http_fetch,
+//     load_skill, web_search and tool_search itself) are bound to the model on every turn.
 //   - Deferred tools are everything registered at runtime — MCP servers and any
 //     other external source. Their schemas are NOT sent to the model up front;
 //     only their names are listed in the prompt. To use one, the model first
@@ -70,11 +70,19 @@ func NewRegistry(skillSvc *skills.Service, httpAllowlist []string) (*Registry, e
 	if err != nil {
 		return nil, err
 	}
+	calc, err := newCalculateTool()
+	if err != nil {
+		return nil, err
+	}
+	jv, err := newJSONValidateTool()
+	if err != nil {
+		return nil, err
+	}
 	ts, err := newToolSearchTool(r)
 	if err != nil {
 		return nil, err
 	}
-	for _, t := range []tool.InvokableTool{ct, hf, ls, ws, ts} {
+	for _, t := range []tool.InvokableTool{ct, calc, jv, hf, ls, ws, ts} {
 		e, err := newEntry(context.Background(), t)
 		if err != nil {
 			return nil, err
