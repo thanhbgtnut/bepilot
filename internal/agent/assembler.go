@@ -32,6 +32,7 @@ type assembler struct {
 	inputTokens  int
 	lastFinish   string
 	steps        int
+	jsonFixes    int // JSON values whose arithmetic the server had to evaluate
 	failed       bool
 	failErrType  string
 	failErrMsg   string
@@ -45,6 +46,7 @@ type openBlock struct {
 	toolName  string
 	text      strings.Builder
 	args      strings.Builder
+	guard     *textGuard // text blocks only: see textGuard
 }
 
 type toolRef struct {
@@ -84,8 +86,7 @@ func (a *assembler) modelChunk(m *schema.Message) {
 	}
 	if m.Content != "" {
 		a.ensureLocked("text")
-		a.open.text.WriteString(m.Content)
-		a.emit(events.Event{Kind: events.KindTextDelta, Index: a.open.index, Text: m.Content})
+		a.textLocked(a.open.guard.feed(m.Content))
 	}
 	for _, tc := range m.ToolCalls {
 		idx := 0
@@ -244,13 +245,32 @@ func (a *assembler) ensureLocked(typ string) {
 	}
 	a.closeLocked()
 	a.open = &openBlock{index: a.nextSSE(), typ: typ}
+	if typ == "text" {
+		a.open.guard = &textGuard{}
+	}
 	a.emit(events.Event{Kind: events.KindContentBlockStart, Index: a.open.index, BlockType: typ})
+}
+
+// textLocked records and emits text the guard has released for the open text
+// block. The persisted text is exactly what was emitted.
+func (a *assembler) textLocked(released string) {
+	if released == "" {
+		return
+	}
+	a.open.text.WriteString(released)
+	a.emit(events.Event{Kind: events.KindTextDelta, Index: a.open.index, Text: released})
 }
 
 func (a *assembler) closeLocked() {
 	ob := a.open
 	if ob == nil {
 		return
+	}
+	if ob.typ == "text" {
+		// Release anything the guard was still holding (e.g. a JSON block) before
+		// the block is sealed.
+		a.textLocked(ob.guard.flush())
+		a.jsonFixes += ob.guard.fixes
 	}
 	a.open = nil
 	order := a.nextOrder()
@@ -294,6 +314,15 @@ func (a *assembler) matchStarted(name string) *toolRef {
 		}
 	}
 	return nil
+}
+
+// fixedJSONValues reports how many JSON values in the answer held arithmetic
+// that the server evaluated instead of the model — a sign the model did the sum
+// itself (or not at all) rather than through the calculate tool.
+func (a *assembler) fixedJSONValues() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.jsonFixes
 }
 
 // result returns the accumulated blocks in index order plus run stats.

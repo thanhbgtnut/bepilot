@@ -249,6 +249,9 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 	defer cancelFinish()
 
 	blocks, stats := asm.result("end_turn")
+	if n := asm.fixedJSONValues(); n > 0 {
+		a.log.Warn("evaluated arithmetic the model left inside JSON values", "session", sess.ID, "values", n, "model", in.Model)
+	}
 	assistantMsg := domain.Message{
 		SessionID:  sess.ID,
 		Role:       domain.RoleAssistant,

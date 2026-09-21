@@ -73,6 +73,19 @@ func newCalculateTool() (tool.InvokableTool, error) {
 	)
 }
 
+// EvalNumber evaluates an arithmetic expression exactly and renders the result
+// as a plain decimal, rounded to defaultPrecision places only when the decimal
+// expansion does not terminate. It is the same evaluator the calculate tool
+// uses, exported so server-side output checks agree with it.
+func EvalNumber(expr string) (string, error) {
+	v, err := evalExpr(expr)
+	if err != nil {
+		return "", err
+	}
+	s, _ := formatRat(v, defaultPrecision)
+	return s, nil
+}
+
 // formatRat renders r as a plain decimal string. It is exact when the decimal
 // expansion terminates; otherwise it is rounded to prec places and exact is
 // false.

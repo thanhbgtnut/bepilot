@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"log/slog"
+	"runtime"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/config"
@@ -24,7 +25,13 @@ func New(cfg appcfg.HTTP, h *api.Handlers, log *slog.Logger) *server.Hertz {
 		server.WithWriteTimeout(cfg.WriteTimeout),
 		server.WithExitWaitTime(cfg.ShutdownTimeout),
 		server.WithStreamBody(true),
-		server.WithSenseClientDisconnection(true),
+	}
+	// Cancelling a request's context when the client hangs up needs connection
+	// state listening, which Hertz has on netpoll and on the standard transport
+	// on Unix — but not on Windows, where enabling it only logs "ListenConnState
+	// failed ... connection close detection disabled" for every connection.
+	if runtime.GOOS != "windows" {
+		opts = append(opts, server.WithSenseClientDisconnection(true))
 	}
 	hz := server.New(opts...)
 
