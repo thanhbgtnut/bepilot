@@ -61,7 +61,10 @@ func historyToMessages(msgs []domain.Message) []*schema.Message {
 
 // trimHistory keeps the most recent messages within a token budget. It never
 // splits an assistant/tool group: trimming happens at message boundaries from
-// the front.
+// the front. The most recent user message is always kept, even when it alone
+// exceeds the budget, and the result always begins with a user message —
+// otherwise the model would receive only the system prompt (Claude rejects that
+// with "only system message in input, require at least 1 user message").
 func trimHistory(msgs []*schema.Message, budget int) []*schema.Message {
 	if budget <= 0 {
 		return msgs
@@ -78,15 +81,26 @@ func trimHistory(msgs []*schema.Message, budget int) []*schema.Message {
 	}
 	// Drop from the front until under budget, but never drop a leading tool
 	// message (would orphan it); skip forward to the next user message.
+	lastUser := -1
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == schema.User {
+			lastUser = i
+			break
+		}
+	}
+	if lastUser < 0 {
+		return msgs
+	}
 	start := 0
-	for start < len(msgs) && total > budget {
+	for start < lastUser && total > budget {
 		total -= approxTokens(msgs[start].Content)
 		for _, tc := range msgs[start].ToolCalls {
 			total -= approxTokens(tc.Function.Arguments)
 		}
 		start++
 	}
-	for start < len(msgs) && msgs[start].Role == schema.Tool {
+	// Never begin on an orphaned tool result or a dangling assistant reply.
+	for start < lastUser && msgs[start].Role != schema.User {
 		start++
 	}
 	return msgs[start:]

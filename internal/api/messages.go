@@ -52,6 +52,11 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
+	if req.HistoryTokenBudget < 0 {
+		h.badRequest(c, "history_token_budget must be >= 0")
+		return
+	}
+
 	provider := req.Provider
 	if provider == "" {
 		provider = h.LLM.DefaultProvider
@@ -93,6 +98,8 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 		MaxTokens:     req.MaxTokens,
 		Temperature:   req.Temperature,
 		RequestSystem: dto.SystemText(req.System),
+
+		HistoryTokenBudget: req.HistoryTokenBudget,
 	}
 
 	if req.Stream || strings.Contains(string(c.GetHeader("Accept")), "text/event-stream") {

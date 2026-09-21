@@ -1009,6 +1009,11 @@
         "dto.MessagesRequest": {
             "type": "object",
             "properties": {
+                "history_token_budget": {
+                    "description": "HistoryTokenBudget (bepilot extension) caps the approximate number of\ntokens of conversation history sent to the model this turn. Oldest\nmessages are dropped first; the latest user message is always kept, even\nif it alone exceeds the budget. 0 or omitted uses the server default\n(agent.history_token_budget); a negative value is rejected.",
+                    "type": "integer",
+                    "example": 24000
+                },
                 "max_tokens": {
                     "type": "integer"
                 },

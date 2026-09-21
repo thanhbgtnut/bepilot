@@ -20,6 +20,13 @@ type MessagesRequest struct {
 	Temperature *float32        `json:"temperature,omitempty"`
 	Stream      bool            `json:"stream,omitempty"`
 	Metadata    *Metadata       `json:"metadata,omitempty"`
+
+	// HistoryTokenBudget (bepilot extension) caps the approximate number of
+	// tokens of conversation history sent to the model this turn. Oldest
+	// messages are dropped first; the latest user message is always kept, even
+	// if it alone exceeds the budget. 0 or omitted uses the server default
+	// (agent.history_token_budget); a negative value is rejected.
+	HistoryTokenBudget int `json:"history_token_budget,omitempty" example:"24000"`
 }
 
 // Metadata carries the optional user and session identifiers.

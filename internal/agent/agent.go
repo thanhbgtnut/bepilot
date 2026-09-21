@@ -53,6 +53,10 @@ type RunInput struct {
 	Temperature   *float32
 	RequestSystem string // request-level `system` field, appended to the prompt
 
+	// HistoryTokenBudget overrides the configured history budget for this turn
+	// when > 0.
+	HistoryTokenBudget int
+
 	Context     []prompt.ContextItem // AG-UI `context`: situational notes folded into the prompt
 	State       json.RawMessage      // AG-UI `state`: client state folded into the prompt, read-only
 	ClientTools []ClientTool         // AG-UI `tools`: client-executed tools bound for this turn only
@@ -136,7 +140,11 @@ func (a *Agent) Run(ctx context.Context, in RunInput, sink events.Sink) (RunOutp
 	if err != nil {
 		return fail(fmt.Errorf("load history: %w", err))
 	}
-	einoHistory := trimHistory(historyToMessages(history), a.acfg.HistoryTokenBudget)
+	historyBudget := a.acfg.HistoryTokenBudget
+	if in.HistoryTokenBudget > 0 {
+		historyBudget = in.HistoryTokenBudget
+	}
+	einoHistory := trimHistory(historyToMessages(history), historyBudget)
 
 	// 3. Retrieve skills relevant to the conversation (not just this message).
 	retrievalQuery := strings.TrimSpace(in.UserText + "\n" + sess.Summary)
