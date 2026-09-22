@@ -1,0 +1,1478 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiến trúc Tổng thể · Nền tảng Agent Thẩm định</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F5F7F5;
+    --surface: #FFFFFF;
+    --surface-2: #EDF1EE;
+    --border: #D7DDD8;
+    --border-strong: #C2CBC4;
+    --text: #16211C;
+    --text-muted: #59665F;
+    --accent: #0E6E56;
+    --accent-ink: #0A4F3E;
+    --accent-soft: #DEEDE6;
+    --gold: #9A7128;
+    --gold-soft: #F0E6D0;
+    --good: #1F7A4D;
+    --warn: #93610F;
+    --crit: #B23F35;
+    --good-soft: #DCEDE2;
+    --warn-soft: #F3E7CF;
+    --crit-soft: #F2DEDB;
+    --blue: #2C5A88;
+    --blue-soft: #DDE7F0;
+    --violet: #6B4FA0;
+    --violet-soft: #EAE3F5;
+    --slate: #3A5A70;
+    --slate-soft: #E1E9ED;
+    --shadow-sm: 0 1px 2px rgba(22, 33, 28, .05);
+    --shadow: 0 1px 2px rgba(22, 33, 28, .04), 0 8px 24px -12px rgba(22, 33, 28, .12);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1613; --surface: #14201C; --surface-2: #1C2A25; --border: #2A3A34; --border-strong: #3A4D45;
+      --text: #E7ECE8; --text-muted: #98A69E; --accent: #3DBF9B; --accent-ink: #7FD9C2; --accent-soft: #123329;
+      --gold: #CBA35E; --gold-soft: #2E2716; --good: #46C07E; --warn: #D69A3E; --crit: #E0685C;
+      --good-soft: #14301F; --warn-soft: #322611; --crit-soft: #34211E;
+      --blue: #7FB0DA; --blue-soft: #16283A;
+      --violet: #C3ACE8; --violet-soft: #241C38;
+      --slate: #9FC1D6; --slate-soft: #16262E;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1613; --surface: #14201C; --surface-2: #1C2A25; --border: #2A3A34; --border-strong: #3A4D45;
+    --text: #E7ECE8; --text-muted: #98A69E; --accent: #3DBF9B; --accent-ink: #7FD9C2; --accent-soft: #123329;
+    --gold: #CBA35E; --gold-soft: #2E2716; --good: #46C07E; --warn: #D69A3E; --crit: #E0685C;
+    --good-soft: #14301F; --warn-soft: #322611; --crit-soft: #34211E;
+    --blue: #7FB0DA; --blue-soft: #16283A;
+    --violet: #C3ACE8; --violet-soft: #241C38;
+    --slate: #9FC1D6; --slate-soft: #16262E;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.55);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: "Spectral", Georgia, serif; font-weight: 500; text-wrap: balance; margin: 0; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent-ink); }
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .88em;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px;
+  }
+  .eyebrow { font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+
+  /* ---------- App bar ---------- */
+  .appbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    padding: 14px 28px; background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; position: sticky; top: 0; z-index: 30;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; flex: none; border-radius: 8px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-ink));
+    display: grid; place-items: center; color: #fff; font-family: "Spectral", serif; font-size: 19px; font-weight: 600;
+  }
+  .brand-name { font-size: 14px; font-weight: 600; }
+  .brand-sub { font-size: 12px; color: var(--text-muted); }
+  .appbar nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .appbar nav a {
+    font-size: 12px; font-weight: 600; text-decoration: none; color: var(--text-muted);
+    padding: 6px 10px; border-radius: 7px;
+  }
+  .appbar nav a:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ---------- Layout ---------- */
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 34px 28px 90px; }
+  section { margin-bottom: 52px; scroll-margin-top: 76px; }
+  .sec-head { margin-bottom: 18px; }
+  .sec-head h2 { font-size: 24px; }
+  .sec-head .lead { font-size: 14px; color: var(--text-muted); margin-top: 6px; max-width: 74ch; }
+  .sec-num {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent);
+    font-weight: 500; letter-spacing: .1em;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-sm); padding: 20px 22px;
+  }
+  .card + .card { margin-top: 14px; }
+
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { margin: 8px 0; padding-left: 20px; }
+  li { margin: 5px 0; }
+
+  .callout-box {
+    border-left: 3px solid var(--gold); background: var(--surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--gold);
+    border-radius: 8px; padding: 14px 16px; font-size: 13.5px; margin: 14px 0;
+  }
+
+  /* ---------- Module overview grid ---------- */
+  .modgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  @media (max-width: 980px) { .modgrid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .modgrid { grid-template-columns: 1fr; } }
+  .modcard {
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    background: var(--surface); padding: 14px 14px 15px; display: flex; flex-direction: column; gap: 6px;
+    border-top: 3px solid var(--border-strong);
+  }
+  .modcard .mn { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--text-muted); }
+  .modcard h4 { font-size: 14.5px; }
+  .modcard p { font-size: 12px; color: var(--text-muted); margin: 0; }
+  .modcard.backend { border-top-color: var(--blue); }
+  .modcard.agent { border-top-color: var(--accent); }
+  .modcard.knowledge { border-top-color: var(--violet); }
+  .modcard.los { border-top-color: var(--gold); }
+  .modcard.gateway { border-top-color: var(--slate); }
+
+  /* ---------- Architecture stack ---------- */
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .layer {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+    box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .layer-h {
+    display: flex; align-items: baseline; gap: 10px; padding: 10px 16px;
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  .layer-h b { font-size: 13px; }
+  .layer-h span { font-size: 11.5px; color: var(--text-muted); }
+  .layer-c { padding: 14px 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .node {
+    flex: 1 1 150px; min-width: 140px;
+    border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px;
+    background: var(--bg); font-size: 12.5px;
+  }
+  .node b { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 2px; font-family: "IBM Plex Sans", sans-serif; }
+  .node span { color: var(--text-muted); font-size: 11.5px; }
+  .node.accent { border-color: var(--accent); background: var(--accent-soft); }
+  .node.gold { border-color: var(--gold); background: var(--gold-soft); }
+  .node.blue { border-color: var(--blue); background: var(--blue-soft); }
+  .node.violet { border-color: var(--violet); background: var(--violet-soft); }
+  .node.slate { border-color: var(--slate); background: var(--slate-soft); }
+  .flowdown { text-align: center; color: var(--text-muted); font-size: 18px; line-height: 1; margin: -4px 0; }
+
+  /* ---------- Flow steps ---------- */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .fstep { display: grid; grid-template-columns: 40px 1fr; gap: 16px; padding: 16px 0; border-top: 1px solid var(--border); }
+  .fstep:first-child { border-top: none; }
+  .fstep .idx {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--accent);
+    color: var(--accent); display: grid; place-items: center; font-family: "IBM Plex Mono", monospace;
+    font-size: 13px; font-weight: 500;
+  }
+  .fstep .body h4 { font-size: 15px; margin-bottom: 3px; }
+  .fstep .body p { font-size: 13.5px; margin-bottom: 6px; }
+  .lane {
+    display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 999px; margin-right: 6px; text-transform: uppercase;
+  }
+  .lane.backend { background: var(--blue-soft); color: var(--blue); }
+  .lane.agent { background: var(--accent-soft); color: var(--accent-ink); }
+  .lane.knowledge { background: var(--violet-soft); color: var(--violet); }
+  .lane.los { background: var(--gold-soft); color: var(--gold); }
+  .lane.gateway { background: var(--slate-soft); color: var(--slate); }
+  .lane.human { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+  .toolref { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--text-muted); }
+
+  /* ---------- Tables ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 620px; }
+  th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+  td .mono { font-size: 12px; }
+  td b { font-weight: 600; }
+
+  .principle {
+    display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 12px 0;
+    border-top: 1px solid var(--border); font-size: 13.5px;
+  }
+  .principle:first-child { border-top: none; }
+  .principle .p-n { font-family: "IBM Plex Mono", monospace; color: var(--accent); font-size: 13px; }
+  .principle b { font-weight: 600; }
+
+  pre {
+    margin: 12px 0 0; padding: 14px 16px; overflow-x: auto;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.6;
+  }
+  pre .c { color: var(--text-muted); }
+  pre .k { color: var(--accent-ink); font-weight: 500; }
+  pre .s { color: var(--gold); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .chk { list-style: none; padding: 0; margin: 0; }
+  .chk li { display: grid; grid-template-columns: 20px 1fr; gap: 9px; padding: 7px 0; font-size: 13px; border-top: 1px solid var(--border); }
+  .chk li:first-child { border-top: none; }
+  .chk li::before { content: "▢"; color: var(--accent); font-size: 13px; }
+
+  .tag {
+    display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); margin: 2px 4px 2px 0;
+  }
+  .tag.w { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+  .tag.r { background: var(--crit-soft); border-color: transparent; color: var(--crit); }
+  .tag.g { background: var(--good-soft); border-color: transparent; color: var(--good); }
+  .tag.v { background: var(--violet-soft); border-color: transparent; color: var(--violet); }
+  .tag.sl { background: var(--slate-soft); border-color: transparent; color: var(--slate); }
+
+  /* ---------- Wiring / pipeline diagrams ---------- */
+  .wire-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .wire-scroll svg { display: block; min-width: 760px; width: 100%; height: auto; }
+  .wire-scroll text { font-family: "IBM Plex Sans", sans-serif; }
+  .wire-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  .wire-legend i { display: inline-block; width: 22px; height: 0; border-top-width: 2px; border-top-style: solid; vertical-align: middle; margin-right: 6px; }
+
+  /* ---------- Phase strip ---------- */
+  .pstrip { display: flex; gap: 0; flex-wrap: wrap; margin-bottom: 8px; }
+  .pstrip .ps {
+    flex: 1 1 150px; border: 1px solid var(--border); border-right: none; background: var(--surface);
+    padding: 9px 12px; font-size: 12px; position: relative;
+  }
+  .pstrip .ps:first-child { border-radius: 8px 0 0 8px; }
+  .pstrip .ps:last-child { border-right: 1px solid var(--border); border-radius: 0 8px 8px 0; }
+  .pstrip .ps b { display: block; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--accent); }
+
+  /* ---------- Sequence call cards ---------- */
+  .seq { display: flex; flex-direction: column; gap: 8px; border-left: 2px solid var(--border); padding-left: 18px; margin-left: 11px; }
+  .call { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px 12px; position: relative; }
+  .call::before { content: ""; position: absolute; left: -19px; top: 17px; width: 13px; height: 2px; background: var(--border); }
+  .call.gw { border-color: var(--slate); background: var(--slate-soft); }
+  .call .dir { font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .call .fn { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 500; color: var(--accent-ink); word-break: break-word; }
+  .call.gw .fn { color: var(--slate); }
+  .call .ret { font-size: 12.5px; margin-top: 5px; }
+  .call .ret::before { content: "↳ "; color: var(--text-muted); }
+  .call .rem { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .call .rem b { color: var(--text); font-weight: 600; }
+
+  footer.note { max-width: 1120px; margin: 0 auto; padding: 0 28px 60px; font-size: 12px; color: var(--text-muted); }
+  footer.note .disc {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold);
+    border-radius: 8px; padding: 13px 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="brand">
+    <div class="brand-mark">đ</div>
+    <div>
+      <div class="brand-name">Nền tảng Agent Thẩm định · Kiến trúc tổng thể</div>
+      <div class="brand-sub">5 module: Backend tiếp nhận · Agent · Knowledge (GraphRAG) · LOS tools · AgentGateway</div>
+    </div>
+  </div>
+  <nav>
+    <a href="#overview">Tổng quan</a>
+    <a href="#c4">Kiến trúc C4</a>
+    <a href="#arch">Chi tiết phân lớp</a>
+    <a href="#backend">1· Backend</a>
+    <a href="#agent">2· Agent</a>
+    <a href="#knowledge">3· Knowledge</a>
+    <a href="#los">4· LOS tools</a>
+    <a href="#gateway">5· Gateway</a>
+    <a href="#flow">Luồng E2E</a>
+    <a href="#nfr">Vận hành</a>
+    <a href="#roadmap">Lộ trình</a>
+    <a href="#teams">Phân công 2 team</a>
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ OVERVIEW ============ -->
+  <section id="overview">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Tổng quan giải pháp</h2>
+      <p class="lead">Nền tảng gồm 5 module tách bạch trách nhiệm, nói chuyện với nhau <b>chỉ qua AgentGateway</b>.
+        Không có kết nối tắt giữa Agent và bất kỳ hệ thống nghiệp vụ hay LLM nào — mọi lệnh gọi tool, mọi lệnh gọi
+        model đều đi qua một control-plane duy nhất để xác thực, phân quyền, áp policy và ghi vết.</p>
+    </div>
+
+    <div class="modgrid">
+      <div class="modcard backend">
+        <span class="mn">MODULE 1</span>
+        <h4>Backend tiếp nhận</h4>
+        <p>Nhận hồ sơ qua Kafka (message chứa file id), lưu kết quả từng task, expose API cho UI &amp; tool cập nhật kết quả cho Agent.</p>
+      </div>
+      <div class="modcard agent">
+        <span class="mn">MODULE 2</span>
+        <h4>Agent</h4>
+        <p>Runtime chạy các agent process — skill, planner, MCP tool client. Không tự kết nối trực tiếp hệ thống nào.</p>
+      </div>
+      <div class="modcard knowledge">
+        <span class="mn">MODULE 3</span>
+        <h4>Knowledge (GraphRAG)</h4>
+        <p>Hồ sơ phương án vay, thông tin trích xuất, tri thức chuyên gia, bài học lịch sử — hợp nhất vào knowledge graph + vector index.</p>
+      </div>
+      <div class="modcard los">
+        <span class="mn">MODULE 4</span>
+        <h4>LOS (hệ thống lõi)</h4>
+        <p>Cung cấp tool để Agent lấy thông tin phương án vay hoặc thông tin RM cập nhật, và các nghiệp vụ tín dụng khác.</p>
+      </div>
+      <div class="modcard gateway">
+        <span class="mn">MODULE 5</span>
+        <h4>AgentGateway</h4>
+        <p>Cấu hình &amp; kiểm soát mọi tool (LOS, Backend, Knowledge, Module Proxy…) và mọi lệnh gọi LLM đi qua một tầng duy nhất.</p>
+      </div>
+    </div>
+
+    <div class="callout-box" style="margin-top:16px">
+      <b>Phân biệt Module 1 và Module 4:</b> Module 1 (Backend tiếp nhận) là lớp <i>mới</i>, đóng vai "bàn giao việc" —
+      nhận sự kiện hồ sơ, sinh task cho Agent, lưu và hiển thị kết quả từng task. Module 4 (LOS lõi) là hệ thống
+      nghiệp vụ tín dụng <i>đã có</i> — nắm dữ liệu phương án vay, khách hàng, RM, tài sản bảo đảm... Agent gọi cả hai,
+      nhưng với hai mục đích khác nhau: Module 1 để <i>báo cáo tiến độ công việc của chính Agent</i>, Module 4 để
+      <i>lấy/ghi dữ liệu nghiệp vụ</i>.
+    </div>
+  </section>
+
+  <!-- ============ C4 ============ -->
+  <section id="c4">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Kiến trúc theo mô hình C4</h2>
+      <p class="lead">Ba lớp phóng to dần: <b>Context</b> (hệ thống nào nói với hệ thống nào) → <b>Container</b>
+        (bên trong "Nền tảng Agent Thẩm định" có những khối chạy độc lập nào) → <b>Component</b> (bên trong một
+        khối, ví dụ Backend Service, có những thành phần nào). Ranh giới hệ thống ở Context khớp đúng ranh giới
+        2 team ở mục <a href="#teams">Phân công 2 team</a>.</p>
+    </div>
+
+    <h4 style="font-size:15px;margin-bottom:8px">Level 1 — System Context</h4>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Nhìn từ xa nhất: người dùng, hai hệ thống
+      (mỗi hệ thống do một team sở hữu), và LLM Providers bên ngoài.</p>
+    <div class="wire-scroll">
+      <svg viewBox="0 0 900 400" role="img" aria-label="Sơ đồ C4 System Context: người dùng nghiệp vụ nối với Hệ thống LOS và Nền tảng Agent Thẩm định; hai hệ thống này nối với nhau qua Kafka và MCP; Nền tảng Agent Thẩm định nối với LLM Providers bên ngoài">
+        <defs>
+          <marker id="c4a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+        </defs>
+
+        <!-- Person -->
+        <rect x="370" y="18" width="160" height="72" rx="8" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.4"/>
+        <circle cx="400" cy="40" r="8" fill="none" stroke="var(--text)" stroke-width="1.6"/>
+        <path d="M389 62 q11 -14 22 0" fill="none" stroke="var(--text)" stroke-width="1.6" stroke-linecap="round"/>
+        <text x="466" y="42" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--text-muted)">[PERSON]</text>
+        <text x="450" y="66" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--text)">Người dùng nghiệp vụ</text>
+        <text x="450" y="82" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">RM · Chuyên viên thẩm định · Cấp phê duyệt</text>
+
+        <line x1="410" y1="90" x2="220" y2="150" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#c4a)"/>
+        <text x="270" y="118" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Xử lý hồ sơ tín dụng</text>
+        <text x="270" y="130" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">[HTTPS]</text>
+
+        <line x1="490" y1="90" x2="600" y2="150" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#c4a)"/>
+        <text x="595" y="118" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Xem tiến độ Agent, xác nhận đề xuất</text>
+        <text x="595" y="130" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">[HTTPS]</text>
+
+        <!-- Hệ thống LOS -->
+        <rect x="40" y="152" width="280" height="100" rx="8" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.6"/>
+        <text x="180" y="176" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--gold)">[SOFTWARE SYSTEM]</text>
+        <text x="180" y="198" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)">Hệ thống LOS</text>
+        <text x="180" y="216" text-anchor="middle" font-size="10" fill="var(--text-muted)">Team LOS — hồ sơ, khách hàng,</text>
+        <text x="180" y="230" text-anchor="middle" font-size="10" fill="var(--text-muted)">TSBĐ, tuân thủ, core banking</text>
+
+        <!-- Nền tảng Agent Thẩm định (in focus) -->
+        <rect x="500" y="152" width="300" height="100" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2.4"/>
+        <text x="650" y="176" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--accent-ink)">[SOFTWARE SYSTEM — TRONG PHẠM VI]</text>
+        <text x="650" y="198" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)">Nền tảng Agent Thẩm định</text>
+        <text x="650" y="216" text-anchor="middle" font-size="10" fill="var(--text-muted)">Team AI Agent — tiếp nhận, Agent,</text>
+        <text x="650" y="230" text-anchor="middle" font-size="10" fill="var(--text-muted)">Knowledge, AgentGateway</text>
+
+        <line x1="320" y1="188" x2="500" y2="188" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#c4a)"/>
+        <text x="410" y="180" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Phát sự kiện tiếp nhận hồ sơ [Kafka]</text>
+        <line x1="500" y1="216" x2="320" y2="216" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4a)"/>
+        <text x="410" y="234" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Lấy phương án vay/RM, gọi tool &amp; tuân thủ [MCP]</text>
+
+        <!-- LLM Providers -->
+        <rect x="640" y="300" width="220" height="70" rx="8" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.5"/>
+        <text x="750" y="322" text-anchor="middle" font-size="10" letter-spacing="1" fill="var(--crit)">[SOFTWARE SYSTEM — BÊN NGOÀI]</text>
+        <text x="750" y="342" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--text)">LLM Providers</text>
+        <text x="750" y="358" text-anchor="middle" font-size="10" fill="var(--text-muted)">nhiều model, suy luận cho Agent</text>
+
+        <line x1="700" y1="252" x2="720" y2="300" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#c4a)" marker-start="url(#c4a)"/>
+        <text x="770" y="280" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Yêu cầu suy luận [HTTPS/API]</text>
+      </svg>
+    </div>
+
+    <h4 style="font-size:15px;margin:28px 0 8px">Level 2 — Container (bên trong "Nền tảng Agent Thẩm định")</h4>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Phóng to hệ thống đang thiết kế: 6 container
+      độc lập (deploy riêng được), khớp đúng Module 1/2/3/5 đã mô tả ở các mục trước.</p>
+    <div class="wire-scroll">
+      <svg viewBox="0 0 980 640" role="img" aria-label="Sơ đồ C4 Container bên trong Nền tảng Agent Thẩm định: Backend Service, Task/Result Store, AgentGateway, Agent Runtime, Knowledge Service, Knowledge Graph và Vector Store, cùng hai hệ thống ngoài Hệ thống LOS và LLM Providers">
+        <defs>
+          <marker id="c4b" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+        </defs>
+
+        <rect x="20" y="14" width="260" height="56" rx="8" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.4"/>
+        <text x="150" y="34" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--gold)">[SOFTWARE SYSTEM — NGOÀI]</text>
+        <text x="150" y="52" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Hệ thống LOS (Team LOS)</text>
+
+        <rect x="700" y="14" width="260" height="56" rx="8" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.4"/>
+        <text x="830" y="34" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--crit)">[SOFTWARE SYSTEM — NGOÀI]</text>
+        <text x="830" y="52" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">LLM Providers</text>
+
+        <rect x="20" y="90" width="940" height="530" rx="10" fill="none" stroke="var(--border-strong)" stroke-width="1.4" stroke-dasharray="6 4"/>
+        <rect x="20" y="79" width="480" height="22" rx="5" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="34" y="94" font-size="11" font-weight="600" fill="var(--accent-ink)">NỀN TẢNG AGENT THẨM ĐỊNH · Software System (Team AI Agent)</text>
+
+        <!-- top row containers -->
+        <rect x="50" y="130" width="260" height="72" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.5"/>
+        <text x="180" y="150" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--blue)">[CONTAINER]</text>
+        <text x="180" y="170" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Backend Service</text>
+        <text x="180" y="186" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Module 1 · Kafka consumer, Task/Case API</text>
+
+        <rect x="360" y="130" width="260" height="72" rx="8" fill="var(--slate-soft)" stroke="var(--slate)" stroke-width="1.5"/>
+        <text x="490" y="150" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--slate)">[CONTAINER]</text>
+        <text x="490" y="170" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">AgentGateway</text>
+        <text x="490" y="186" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Module 5 · MCP / API Gateway</text>
+
+        <rect x="670" y="130" width="260" height="72" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="800" y="150" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--accent-ink)">[CONTAINER]</text>
+        <text x="800" y="170" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Agent Runtime</text>
+        <text x="800" y="186" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Module 2 · quy trình agent</text>
+
+        <!-- second row -->
+        <rect x="50" y="240" width="260" height="60" rx="8" fill="var(--surface-2)" stroke="var(--blue)" stroke-width="1.3" stroke-dasharray="5 3"/>
+        <text x="180" y="260" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--blue)">[CONTAINER: DATABASE]</text>
+        <text x="180" y="280" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--text)">Task / Result Store</text>
+
+        <rect x="360" y="240" width="260" height="72" rx="8" fill="var(--violet-soft)" stroke="var(--violet)" stroke-width="1.5"/>
+        <text x="490" y="260" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--violet)">[CONTAINER]</text>
+        <text x="490" y="280" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Knowledge Service</text>
+        <text x="490" y="296" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">Module 3 · GraphRAG</text>
+
+        <!-- third row -->
+        <rect x="360" y="352" width="260" height="60" rx="8" fill="var(--surface-2)" stroke="var(--violet)" stroke-width="1.3" stroke-dasharray="5 3"/>
+        <text x="490" y="372" text-anchor="middle" font-size="9.5" letter-spacing="1" fill="var(--violet)">[CONTAINER: DATABASE]</text>
+        <text x="490" y="392" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text)">Knowledge Graph + Vector Store</text>
+
+        <!-- arrows -->
+        <line x1="150" y1="70" x2="150" y2="130" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4b)"/>
+        <text x="150" y="115" text-anchor="middle" font-size="9" fill="var(--text-muted)">[HTTPS] xem tiến độ · [Kafka] case.intake</text>
+
+        <line x1="230" y1="70" x2="430" y2="130" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4b)"/>
+        <text x="330" y="112" text-anchor="middle" font-size="9" fill="var(--text-muted)">[MCP] los.* / compliance.*</text>
+
+        <line x1="830" y1="70" x2="600" y2="130" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4b)"/>
+        <text x="740" y="108" text-anchor="middle" font-size="9" fill="var(--text-muted)">[HTTPS] model inference</text>
+
+        <line x1="310" y1="166" x2="360" y2="166" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#c4b)" marker-start="url(#c4b)"/>
+        <text x="335" y="158" text-anchor="middle" font-size="9" fill="var(--text-muted)">[MCP] backend.*</text>
+
+        <line x1="620" y1="166" x2="670" y2="166" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#c4b)" marker-start="url(#c4b)"/>
+        <text x="645" y="158" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">một kết nối</text>
+
+        <line x1="180" y1="202" x2="180" y2="240" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4b)"/>
+        <text x="240" y="226" text-anchor="middle" font-size="9" fill="var(--text-muted)">[SQL] read/write</text>
+
+        <line x1="490" y1="202" x2="490" y2="240" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#c4b)" marker-start="url(#c4b)"/>
+        <text x="565" y="224" text-anchor="middle" font-size="9" fill="var(--text-muted)">[MCP] knowledge.*</text>
+
+        <line x1="490" y1="312" x2="490" y2="352" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4b)"/>
+        <text x="560" y="336" text-anchor="middle" font-size="9" fill="var(--text-muted)">read/write</text>
+      </svg>
+    </div>
+
+    <h4 style="font-size:15px;margin:28px 0 8px">Level 3 — Component (bên trong container "Backend Service")</h4>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Phóng to tiếp container mà bạn sẽ làm đầu
+      tiên (Module 1), để team AI Agent bắt tay code được ngay.</p>
+    <div class="wire-scroll">
+      <svg viewBox="0 0 980 520" role="img" aria-label="Sơ đồ C4 Component bên trong container Backend Service: Kafka Consumer, Case/Task Service, Result Store Adapter, Task Query API, Task Update Tool Adapter, cùng các phụ thuộc ngoài Kafka Topic, Hệ thống LOS UI, AgentGateway và Task/Result Store">
+        <defs>
+          <marker id="c4c" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+        </defs>
+
+        <rect x="350" y="14" width="240" height="46" rx="7" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.3" stroke-dasharray="5 3"/>
+        <text x="470" y="33" text-anchor="middle" font-size="9.5" fill="var(--text)">Kafka Topic</text>
+        <text x="470" y="48" text-anchor="middle" font-size="9" fill="var(--text-muted)">los.case.intake (container khác)</text>
+
+        <rect x="20" y="215" width="150" height="60" rx="7" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.3"/>
+        <text x="95" y="236" text-anchor="middle" font-size="9.5" fill="var(--gold)">[NGOÀI]</text>
+        <text x="95" y="252" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--text)">Hệ thống LOS</text>
+        <text x="95" y="266" text-anchor="middle" font-size="9" fill="var(--text-muted)">giao diện Panel Agent</text>
+
+        <rect x="800" y="215" width="150" height="60" rx="7" fill="var(--slate-soft)" stroke="var(--slate)" stroke-width="1.3"/>
+        <text x="875" y="236" text-anchor="middle" font-size="9.5" fill="var(--slate)">[NGOÀI]</text>
+        <text x="875" y="252" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--text)">AgentGateway</text>
+        <text x="875" y="266" text-anchor="middle" font-size="9" fill="var(--text-muted)">Agent gọi qua đây</text>
+
+        <rect x="350" y="440" width="240" height="50" rx="7" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.3" stroke-dasharray="5 3"/>
+        <text x="470" y="460" text-anchor="middle" font-size="9.5" fill="var(--text)">Task / Result Store</text>
+        <text x="470" y="475" text-anchor="middle" font-size="9" fill="var(--text-muted)">container Database khác</text>
+
+        <rect x="180" y="85" width="600" height="330" rx="10" fill="none" stroke="var(--blue)" stroke-width="1.4" stroke-dasharray="6 4"/>
+        <rect x="180" y="74" width="260" height="22" rx="5" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.2"/>
+        <text x="194" y="89" font-size="10.5" font-weight="600" fill="var(--blue)">BACKEND SERVICE · Container</text>
+
+        <rect x="350" y="108" width="240" height="56" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.4"/>
+        <text x="470" y="126" text-anchor="middle" font-size="9" letter-spacing="1" fill="var(--blue)">[COMPONENT]</text>
+        <text x="470" y="144" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--text)">Kafka Consumer</text>
+        <text x="470" y="158" text-anchor="middle" font-size="9" fill="var(--text-muted)">tạo Case + Task theo plan</text>
+
+        <rect x="350" y="210" width="240" height="70" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.6"/>
+        <text x="470" y="230" text-anchor="middle" font-size="9" letter-spacing="1" fill="var(--blue)">[COMPONENT]</text>
+        <text x="470" y="250" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Case / Task Service</text>
+        <text x="470" y="266" text-anchor="middle" font-size="9" fill="var(--text-muted)">logic trạng thái, quy tắc plan</text>
+
+        <rect x="350" y="320" width="240" height="56" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.4"/>
+        <text x="470" y="338" text-anchor="middle" font-size="9" letter-spacing="1" fill="var(--blue)">[COMPONENT]</text>
+        <text x="470" y="356" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--text)">Result Store Adapter</text>
+        <text x="470" y="370" text-anchor="middle" font-size="9" fill="var(--text-muted)">persist kết quả task</text>
+
+        <rect x="200" y="215" width="170" height="60" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.4"/>
+        <text x="285" y="234" text-anchor="middle" font-size="9" letter-spacing="1" fill="var(--blue)">[COMPONENT]</text>
+        <text x="285" y="252" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text)">Task Query API</text>
+        <text x="285" y="266" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">GET tasks / result</text>
+
+        <rect x="610" y="215" width="170" height="60" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.4"/>
+        <text x="695" y="234" text-anchor="middle" font-size="9" letter-spacing="1" fill="var(--blue)">[COMPONENT]</text>
+        <text x="695" y="252" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--text)">Task Update Tool Adapter</text>
+        <text x="695" y="266" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">update_task_result</text>
+
+        <line x1="470" y1="60" x2="470" y2="108" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)"/>
+        <text x="530" y="88" text-anchor="middle" font-size="9" fill="var(--text-muted)">consume</text>
+
+        <line x1="470" y1="164" x2="470" y2="210" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)"/>
+
+        <line x1="170" y1="245" x2="200" y2="245" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)" marker-start="url(#c4c)"/>
+        <line x1="370" y1="245" x2="350" y2="245" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)" marker-start="url(#c4c)"/>
+        <line x1="590" y1="245" x2="610" y2="245" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)" marker-start="url(#c4c)"/>
+        <line x1="780" y1="245" x2="800" y2="245" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)" marker-start="url(#c4c)"/>
+        <text x="875" y="292" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">[MCP] qua Gateway</text>
+
+        <line x1="470" y1="280" x2="470" y2="320" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)"/>
+        <text x="530" y="303" text-anchor="middle" font-size="9" fill="var(--text-muted)">persist</text>
+
+        <line x1="470" y1="376" x2="470" y2="440" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#c4c)"/>
+        <text x="540" y="412" text-anchor="middle" font-size="9" fill="var(--text-muted)">[SQL/NoSQL] read/write</text>
+      </svg>
+    </div>
+
+    <div class="callout-box">
+      <b>Ký hiệu C4:</b> <span class="tag">[Person]</span> người dùng · <span class="tag g">[Software System]</span>
+      hệ thống hoàn chỉnh, một team sở hữu · <span class="tag sl">[Container]</span> ứng dụng/dịch vụ/CSDL deploy
+      độc lập bên trong một hệ thống · <span class="tag">[Component]</span> nhóm logic bên trong một container.
+      Mỗi mức chỉ phóng to <i>một</i> khối của mức trên — đúng nguyên tắc C4, không vẽ mọi thứ trong một hình.
+    </div>
+  </section>
+
+  <!-- ============ ARCHITECTURE ============ -->
+  <section id="arch">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Kiến trúc phân lớp</h2>
+      <p class="lead">Sáu lớp. AgentGateway nằm giữa — là lớp duy nhất Agent Runtime được phép kết nối ra ngoài.</p>
+    </div>
+
+    <div class="stack">
+      <div class="layer">
+        <div class="layer-h"><b>0 · Con người &amp; giao diện</b><span>RM, chuyên viên thẩm định, cấp phê duyệt — qua LOS UI / panel Agent</span></div>
+        <div class="layer-c">
+          <div class="node blue"><b>Kênh nộp hồ sơ</b><span>Chi nhánh, cổng KH, email → phát sinh file cần xử lý</span></div>
+          <div class="node blue"><b>Giao diện LOS / panel Agent</b><span>Xem tiến độ, kết quả từng task, duyệt/từ chối đề xuất</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↓ ↑</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>1 · Backend tiếp nhận &amp; điều phối (Module 1)</b><span>Kafka consumer · Case/Task/Result store · API cho UI &amp; Agent</span></div>
+        <div class="layer-c">
+          <div class="node blue"><b>Kafka consumer</b><span>Nhận message chứa case_id + file_id(s)</span></div>
+          <div class="node blue"><b>Task/Result store</b><span>Trạng thái, kết quả, confidence, source_refs từng task</span></div>
+          <div class="node blue"><b>API cho UI</b><span>REST/GraphQL hiển thị kết quả từng Agent task</span></div>
+          <div class="node blue"><b>Tool cập nhật kết quả</b><span>backend.* — Agent gọi để lưu kết quả task (qua Gateway)</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↕</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>2 · AgentGateway (Module 5)</b><span>Control-plane duy nhất cho toàn bộ lưu lượng tool &amp; LLM</span></div>
+        <div class="layer-c">
+          <div class="node slate"><b>Đăng ký &amp; định tuyến tool</b><span>Federation nhiều MCP server: Backend, Knowledge, LOS, Module Proxy…</span></div>
+          <div class="node slate"><b>AuthN/AuthZ &amp; policy</b><span>Danh tính agent + on-behalf-of, RBAC theo tool/scope</span></div>
+          <div class="node slate"><b>Định tuyến LLM</b><span>Nhiều model/provider, fallback, cache, giới hạn chi phí</span></div>
+          <div class="node slate"><b>Observability &amp; audit</b><span>Log bất biến mọi lệnh gọi tool/model, phục vụ thanh tra</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↕</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>3 · Agent Runtime (Module 2)</b><span>Chỉ có một kết nối ra ngoài: tới AgentGateway</span></div>
+        <div class="layer-c">
+          <div class="node accent"><b>Planner / Orchestrator</b><span>Chia hồ sơ thành task, chọn skill &amp; tool</span></div>
+          <div class="node accent"><b>Skill library</b><span>Playbook nghiệp vụ: spreading, DSCR, pháp lý, TSBĐ, tờ trình…</span></div>
+          <div class="node accent"><b>MCP tool client</b><span>Gọi tool đăng ký trên Gateway — không biết địa chỉ thật</span></div>
+          <div class="node accent"><b>Bộ nhớ phiên / case</b><span>Ngữ cảnh hồ sơ đang xử lý, trạng thái task</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↕</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>4 · Knowledge — GraphRAG (Module 3)</b><span>Nguồn tri thức để Agent truy hồi ngữ cảnh &amp; tiền lệ</span></div>
+        <div class="layer-c">
+          <div class="node violet"><b>Hồ sơ phương án vay</b><span>Đề nghị, cấu trúc khoản vay, TSBĐ theo case</span></div>
+          <div class="node violet"><b>Thông tin trích xuất</b><span>Dữ liệu OCR/extract đã chuẩn hoá, gắn source_refs</span></div>
+          <div class="node violet"><b>Tri thức chuyên gia</b><span>Playbook, ghi chú thẩm định, quy tắc kinh nghiệm</span></div>
+          <div class="node violet"><b>Bài học lịch sử</b><span>Case cũ, phản hồi chuyên viên, kết luận cuối vs. bản nháp</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↕</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>5 · LOS &amp; hệ thống nghiệp vụ (Module 4)</b><span>Systems of record — Agent không chạm trực tiếp</span></div>
+        <div class="layer-c">
+          <div class="node gold"><b>los.get_loan_plan</b><span>Phương án vay, đề nghị cấp tín dụng, TSBĐ</span></div>
+          <div class="node gold"><b>los.get_rm_updates</b><span>Thông tin/cập nhật RM ghi trong quá trình xử lý</span></div>
+          <div class="node gold"><b>compliance.*</b><span>Chính sách, giới hạn cấp TD, thẩm quyền — chốt chặn riêng</span></div>
+          <div class="node gold"><b>Core banking / CIC / ECM</b><span>Dư nợ, tín dụng quốc gia, kho tài liệu</span></div>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin-top:14px;font-size:13px;color:var(--text-muted)">Mũi tên hai chiều (↕) thể hiện: Agent gọi
+      xuống để lấy dữ liệu/thực thi tool, hệ thống trả kết quả lên qua chính Gateway đó — không có đường phản hồi
+      "tắt" nào bỏ qua lớp kiểm soát.</p>
+
+    <h4 style="font-size:15px;margin:26px 0 10px">Sơ đồ kết nối các module (topology)</h4>
+    <p class="lead" style="margin-bottom:12px">Cùng nội dung ở trên nhưng nhìn theo <b>ai nối với ai</b> thay vì
+      theo lớp trên-dưới. Chỉ có 3 đường không qua AgentGateway: UI đọc thẳng API của Backend, UI đọc thẳng màn hình
+      của LOS (giao diện có sẵn), và cặp Kafka giữa LOS ⇄ Backend.</p>
+
+    <div class="wire-scroll">
+      <svg viewBox="0 0 940 520" role="img" aria-label="Sơ đồ khối kết nối các module: UI nối Backend và LOS lõi; LOS lõi và Backend nối qua Kafka; Backend và LOS lõi cùng đăng ký tool trên AgentGateway; AgentGateway là điểm nối duy nhất tới Agent Runtime, Knowledge, LLM Providers và Module Proxy khác">
+        <defs>
+          <marker id="ah4" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+        </defs>
+
+        <!-- UI -->
+        <rect x="270" y="18" width="400" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.4"/>
+        <text x="470" y="40" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)">LOS UI &amp; Panel Agent</text>
+        <text x="470" y="58" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">RM · Chuyên viên thẩm định · Cấp phê duyệt</text>
+
+        <line x1="380" y1="72" x2="180" y2="140" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <text x="230" y="105" font-size="10" fill="var(--text-muted)">REST · xem tiến độ/kết quả task</text>
+        <line x1="580" y1="72" x2="790" y2="140" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <text x="660" y="105" font-size="10" fill="var(--text-muted)">Giao diện LOS hiện có</text>
+
+        <!-- Backend / Kafka / LOS core row -->
+        <rect x="30" y="142" width="300" height="60" rx="9" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.4"/>
+        <text x="180" y="166" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--text)">Backend tiếp nhận</text>
+        <text x="180" y="184" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Module 1 · Kafka consumer, Task/Result store</text>
+
+        <rect x="370" y="152" width="200" height="40" rx="8" fill="var(--surface)" stroke="var(--border-strong)" stroke-width="1.3" stroke-dasharray="5 4"/>
+        <text x="470" y="176" text-anchor="middle" font-size="11.5" fill="var(--text)">Kafka</text>
+
+        <rect x="610" y="142" width="300" height="60" rx="9" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.4"/>
+        <text x="760" y="166" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--text)">LOS lõi &amp; Compliance</text>
+        <text x="760" y="184" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Module 4 · los.* · party.* · compliance.*</text>
+
+        <line x1="610" y1="172" x2="570" y2="172" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ah4)"/>
+        <text x="592" y="163" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">publish</text>
+        <line x1="370" y1="172" x2="330" y2="172" stroke="var(--text-muted)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ah4)"/>
+        <text x="349" y="163" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">consume</text>
+
+        <!-- down to gateway -->
+        <line x1="180" y1="202" x2="330" y2="280" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <text x="200" y="245" font-size="10" fill="var(--text-muted)">backend.*</text>
+        <line x1="760" y1="202" x2="610" y2="280" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <text x="700" y="245" font-size="10" fill="var(--text-muted)">los.* / compliance.*</text>
+
+        <!-- Gateway hub -->
+        <rect x="270" y="282" width="400" height="66" rx="10" fill="var(--slate-soft)" stroke="var(--slate)" stroke-width="1.8"/>
+        <text x="470" y="308" text-anchor="middle" font-size="14" font-weight="600" fill="var(--text)">AgentGateway</text>
+        <text x="470" y="326" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Module 5 · điểm nối duy nhất tới các module dưới</text>
+        <text x="470" y="340" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">AuthN/AuthZ · policy · routing LLM · audit</text>
+
+        <!-- spokes down -->
+        <line x1="330" y1="348" x2="130" y2="400" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <line x1="400" y1="348" x2="350" y2="400" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <line x1="540" y1="348" x2="570" y2="400" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+        <line x1="610" y1="348" x2="790" y2="400" stroke="var(--border-strong)" stroke-width="1.5" marker-end="url(#ah4)" marker-start="url(#ah4)"/>
+
+        <rect x="30" y="402" width="200" height="62" rx="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+        <text x="130" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Agent Runtime</text>
+        <text x="130" y="443" text-anchor="middle" font-size="10" fill="var(--text-muted)">Module 2</text>
+        <text x="130" y="457" text-anchor="middle" font-size="10" fill="var(--text-muted)">một kết nối ra ngoài</text>
+
+        <rect x="250" y="402" width="200" height="62" rx="9" fill="var(--violet-soft)" stroke="var(--violet)" stroke-width="1.4"/>
+        <text x="350" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Knowledge</text>
+        <text x="350" y="443" text-anchor="middle" font-size="10" fill="var(--text-muted)">Module 3 · GraphRAG</text>
+        <text x="350" y="457" text-anchor="middle" font-size="10" fill="var(--text-muted)">knowledge.*</text>
+
+        <rect x="470" y="402" width="200" height="62" rx="9" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.4"/>
+        <text x="570" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">LLM Providers</text>
+        <text x="570" y="443" text-anchor="middle" font-size="10" fill="var(--text-muted)">đa model</text>
+        <text x="570" y="457" text-anchor="middle" font-size="10" fill="var(--text-muted)">fallback / cache</text>
+
+        <rect x="690" y="402" width="220" height="62" rx="9" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.4"/>
+        <text x="800" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Module Proxy khác</text>
+        <text x="800" y="443" text-anchor="middle" font-size="10" fill="var(--text-muted)">hệ thống ngoài</text>
+        <text x="800" y="457" text-anchor="middle" font-size="10" fill="var(--text-muted)">mở rộng sau</text>
+
+        <text x="470" y="500" text-anchor="middle" font-size="11" fill="var(--text-muted)">Agent chỉ chạm một khối duy nhất: AgentGateway. Mọi khối phía dưới không biết Agent tồn tại, chỉ biết "có lệnh gọi hợp lệ từ Gateway".</text>
+      </svg>
+    </div>
+    <div class="wire-legend">
+      <span><i style="border-color:var(--border-strong)"></i>Kết nối trực tiếp (không qua Gateway)</span>
+      <span><i style="border-color:var(--text-muted);border-top-style:dashed"></i>Sự kiện Kafka</span>
+      <span><i style="border-color:var(--slate)"></i>Qua AgentGateway (registry, policy, audit)</span>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 1 — BACKEND ============ -->
+  <section id="backend">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Module 1 — Backend tiếp nhận &amp; điều phối task</h2>
+      <p class="lead">Cửa vào của toàn hệ thống. Nhận hồ sơ qua Kafka, tạo và theo dõi task cho Agent, lưu kết quả,
+        và là nguồn dữ liệu cho giao diện xem kết quả từng task.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="font-size:15px;margin-bottom:8px">Trách nhiệm</h4>
+      <ul>
+        <li><b>Kafka consumer:</b> lắng nghe topic tiếp nhận hồ sơ, message chứa <code>case_id</code> và danh sách <code>file_id</code>.</li>
+        <li><b>Case/Task orchestration:</b> tạo case, sinh danh sách task theo skill cần chạy, theo dõi trạng thái.</li>
+        <li><b>Task/Result store:</b> lưu kết quả mỗi task — nội dung, độ tin cậy, nguồn dữ liệu (<code>source_refs</code>), phiên bản.</li>
+        <li><b>API cho giao diện:</b> phục vụ UI kiểu <code>appraisal-agent.html</code> / panel trong <code>los-embedded.html</code> — danh sách task, chi tiết, tiến độ tổng.</li>
+        <li><b>Tool cập nhật kết quả:</b> expose hành động ghi (qua Gateway) để Agent gọi vào lưu kết quả từng task khi hoàn tất.</li>
+      </ul>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <h4 style="font-size:14.5px;margin-bottom:8px">Message Kafka — tiếp nhận hồ sơ</h4>
+<pre><span class="c">// topic: los.case.intake</span>
+{
+  <span class="k">event</span>: <span class="s">"case.intake.received"</span>,
+  <span class="k">case_id</span>: <span class="s">"LOS-2026-04871"</span>,
+  <span class="k">file_ids</span>: [<span class="s">"doc_8841"</span>, <span class="s">"doc_8842"</span>, <span class="s">"doc_8843"</span>],
+  <span class="k">product_type</span>: <span class="s">"working_capital_khdn"</span>,
+  <span class="k">source_channel</span>: <span class="s">"branch-portal"</span>,
+  <span class="k">submitted_by</span>: <span class="s">"rm_2291"</span>,
+  <span class="k">submitted_at</span>: <span class="s">"2026-08-26T08:12:00+07:00"</span>
+}</pre>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14.5px;margin-bottom:8px">Mô hình dữ liệu chính</h4>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Thực thể</th><th>Trường then chốt</th></tr></thead>
+            <tbody>
+              <tr><td><b>Case</b></td><td class="mono">case_id, status, file_ids[], created_at</td></tr>
+              <tr><td><b>Task</b></td><td class="mono">task_id, case_id, skill, status, confidence, assignee</td></tr>
+              <tr><td><b>TaskResult</b></td><td class="mono">task_id, result, source_refs[], version, produced_by</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h4 style="font-size:14.5px;margin-bottom:8px">API &amp; tool phơi ra (đăng ký trên AgentGateway)</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Giao diện</th><th>Dùng cho</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">GET /cases/{id}/tasks</td>
+              <td>UI hiển thị tiến độ (tiles, danh sách task)</td>
+              <td>Đọc trực tiếp, không qua Gateway — UI thuộc "bên trong" Backend.</td>
+            </tr>
+            <tr>
+              <td class="mono">GET /tasks/{id}/result</td>
+              <td>UI hiển thị chi tiết một task khi mở rộng dòng</td>
+              <td>Trả kèm confidence, source_refs như trong <code>appraisal-agent.html</code>.</td>
+            </tr>
+            <tr>
+              <td class="mono">backend.create_tasks(case_id, plan)</td>
+              <td>Agent Orchestrator sinh kế hoạch task</td>
+              <td>Tool ghi — qua Gateway, gắn <code>agent_id</code> + <code>on_behalf_of</code>.</td>
+            </tr>
+            <tr>
+              <td class="mono">backend.update_task_result(task_id, result, confidence, source_refs)</td>
+              <td><b>Tool Agent gọi để lưu kết quả từng task</b></td>
+              <td>Idempotent theo <code>task_id</code> + <code>version</code>. Đây là tool trọng tâm của Module 1.</td>
+            </tr>
+            <tr>
+              <td class="mono">backend.get_case_context(case_id)</td>
+              <td>Agent lấy lại ngữ cảnh khi tiếp tục xử lý</td>
+              <td>Trả danh sách task đã/chưa xong — dùng khi resume.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 2 — AGENT ============ -->
+  <section id="agent">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Module 2 — Agent</h2>
+      <p class="lead">Nơi chạy các agent process. Mỗi agent có một tập <b>skill</b> và chỉ tương tác với thế giới
+        ngoài qua <b>tool MCP đăng ký trên AgentGateway</b> — không tự giữ credential hay địa chỉ hệ thống nào.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h4 style="font-size:15px;margin-bottom:8px">Thành phần runtime</h4>
+        <ul>
+          <li><b>Planner/Orchestrator:</b> nhận sự kiện <code>case.intake.received</code> (qua Backend), sinh kế hoạch task theo loại hồ sơ.</li>
+          <li><b>Skill:</b> đơn vị nghiệp vụ có thể tái sử dụng — ví dụ "Phân tích BCTC &amp; DSCR", "Rà soát pháp lý", "Định giá TSBĐ sơ bộ", "Soạn tờ trình".</li>
+          <li><b>MCP tool client:</b> một client duy nhất, trỏ về AgentGateway; danh mục tool nạp động từ Gateway theo quyền được cấp.</li>
+          <li><b>Bộ nhớ phiên:</b> ngữ cảnh case đang xử lý + kết quả các skill đã chạy trong phiên, tách khỏi Knowledge (dài hạn).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:15px;margin-bottom:8px">Ví dụ khai báo một skill</h4>
+<pre><span class="c">// skill: spreading_and_dscr</span>
+{
+  <span class="k">skill_id</span>: <span class="s">"spreading_and_dscr"</span>,
+  <span class="k">inputs</span>: [<span class="s">"case_id"</span>],
+  <span class="k">tools</span>: [
+    <span class="s">"los.document_extract"</span>,
+    <span class="s">"los.spreading_compute_ratios"</span>,
+    <span class="s">"knowledge.get_industry_benchmarks"</span>,
+    <span class="s">"backend.update_task_result"</span>
+  ],
+  <span class="k">output_schema</span>: <span class="s">"FinancialRatioResult"</span>,
+  <span class="k">needs_human_review_if</span>: <span class="s">"dscr &lt; policy_min"</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <b>Nguyên tắc:</b> Agent Runtime không phân biệt được một tool là của Backend, Knowledge, hay LOS — với Agent,
+      tất cả chỉ là "tool có sẵn trên Gateway". Việc thêm hệ thống mới (một Module Proxy khác, một nguồn dữ liệu
+      mới) chỉ cần đăng ký trên Gateway, không cần đổi mã Agent.
+    </div>
+  </section>
+
+  <!-- ============ MODULE 3 — KNOWLEDGE ============ -->
+  <section id="knowledge">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>Module 3 — Knowledge (GraphRAG)</h2>
+      <p class="lead">Nơi hợp nhất 4 nguồn tri thức mà Agent cần để suy luận có ngữ cảnh: hồ sơ phương án vay, thông
+        tin đã trích xuất, tri thức chuyên gia, và bài học từ các hồ sơ lịch sử. Kết hợp knowledge graph (quan hệ
+        thực thể) với vector search (tương đồng ngữ nghĩa) — đúng mô hình GraphRAG.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="font-size:15px;margin-bottom:8px">Pipeline nạp &amp; truy hồi tri thức</h4>
+      <div class="flow">
+        <div class="fstep">
+          <div class="idx">1</div>
+          <div class="body">
+            <h4>Nạp nguồn (ingest)</h4>
+            <p><span class="lane knowledge">Knowledge</span> Đồng bộ từ Backend (kết quả task, source_refs) và LOS
+              (phương án vay, hồ sơ đã duyệt), nhập tri thức chuyên gia (playbook, ghi chú thẩm định đã chuẩn hoá).</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">2</div>
+          <div class="body">
+            <h4>Trích xuất thực thể &amp; quan hệ</h4>
+            <p><span class="lane knowledge">Knowledge</span> Nhận diện thực thể (Bên vay, Phương án vay, TSBĐ, Bên
+              liên quan, Quy tắc chính sách, Case lịch sử) và quan hệ giữa chúng (vay/bảo đảm/liên quan/áp dụng quy tắc).</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">3</div>
+          <div class="body">
+            <h4>Xây knowledge graph + vector index</h4>
+            <p><span class="lane knowledge">Knowledge</span> Ghi vào graph store (quan hệ tường minh: nhóm KH liên
+              quan, tiền lệ áp dụng quy tắc) và vector store (embedding case/đoạn văn bản để tìm case/tình huống tương tự).</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">4</div>
+          <div class="body">
+            <h4>Truy hồi kết hợp (GraphRAG)</h4>
+            <p><span class="lane knowledge">Knowledge</span> Khi Agent hỏi, hệ thống vừa duyệt graph (quan hệ trực
+              tiếp) vừa tìm tương đồng vector (case gần giống), tổng hợp thành ngữ cảnh có trích dẫn nguồn trả về Agent.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <h4 style="font-size:14.5px;margin-bottom:8px">Tool phơi ra (qua Gateway)</h4>
+        <ul style="font-size:12.5px">
+          <li><code>knowledge.query_case_context(case_id)</code> — tổng hợp phương án vay + trích xuất liên quan.</li>
+          <li><code>knowledge.find_similar_cases(features, k)</code> — case lịch sử gần giống (vector + graph).</li>
+          <li><code>knowledge.get_expert_notes(topic)</code> — ghi chú/playbook chuyên gia theo chủ đề.</li>
+          <li><code>knowledge.get_lessons_learned(skill_id)</code> — điểm khác biệt nháp/kết luận cuối từng skill.</li>
+          <li><code>knowledge.explain_relation(entity_a, entity_b)</code> — đường quan hệ trong graph, có trích dẫn.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14.5px;margin-bottom:8px">Vì sao cần GraphRAG, không chỉ RAG thuần vector</h4>
+        <ul style="font-size:12.5px">
+          <li>Nhóm khách hàng liên quan, sở hữu chéo là <b>quan hệ nhiều bước</b> — vector search một mình không truy được đường liên kết.</li>
+          <li>Trả lời cần <b>trích dẫn theo cấu trúc</b> (case nào, quy tắc nào), không chỉ đoạn văn bản gần giống.</li>
+          <li>Cho phép Agent hỏi "case tương tự trước đây xử lý sao" bằng cả ngữ nghĩa và quan hệ tường minh.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 4 — LOS ============ -->
+  <section id="los">
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>Module 4 — LOS cung cấp tool nghiệp vụ</h2>
+      <p class="lead">Hệ thống LOS hiện hữu, giữ vai trò <i>system of record</i>. Không đổi kiến trúc LOS — chỉ thêm
+        một lớp tool (MCP) phơi các năng lực cần cho Agent, đăng ký qua AgentGateway.</p>
+    </div>
+
+    <div class="card">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tool tiêu biểu</th><th>Trả về</th><th>Ghi chú kiểm soát</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="mono">los.get_loan_plan(case_id)</td>
+              <td>Đề nghị cấp TD, mục đích vay, cấu trúc, TSBĐ</td>
+              <td>Chỉ đọc. Nguồn cho phần "Phương án sử dụng vốn" hiển thị trong hồ sơ.</td>
+            </tr>
+            <tr>
+              <td class="mono">los.get_rm_updates(case_id)</td>
+              <td>Ghi chú/cập nhật của RM trong quá trình xử lý</td>
+              <td>Chỉ đọc. Giúp Agent nắm thông tin RM bổ sung ngoài hồ sơ gốc.</td>
+            </tr>
+            <tr>
+              <td class="mono">party.get_related_group(borrower_id)</td>
+              <td>Nhóm khách hàng liên quan, sở hữu chéo</td>
+              <td>Đầu vào bắt buộc cho kiểm tra giới hạn cấp TD.</td>
+            </tr>
+            <tr>
+              <td class="mono">collateral.estimate_value(collateral_id)</td>
+              <td>Định giá tham chiếu sơ bộ TSBĐ</td>
+              <td>Ước tính; định giá chính thức qua <code>request_valuation</code> (proposed action).</td>
+            </tr>
+            <tr>
+              <td class="mono">compliance.evaluate(proposal)</td>
+              <td>Phán quyết pass/fail/review kèm rule_id, trích dẫn</td>
+              <td>Chốt chặn riêng cho mọi nội dung tín dụng — xem chi tiết ở <code>agent-los-architecture.html</code>.</td>
+            </tr>
+            <tr>
+              <td class="mono">workflow.propose(action)</td>
+              <td>Đưa hành động rủi ro cao vào hàng đợi duyệt</td>
+              <td>Không tự thực thi — luôn qua Approval Broker của LOS.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:10px;font-size:12.5px;color:var(--text-muted)">Danh mục đầy đủ (document.*, spreading.*,
+        bureau.*, party.*, collateral.*, creditmemo.*, workflow.*, notify.*, audit.*, compliance.*) và 10 nguyên tắc
+        thiết kế tool đã có ở <code>agent-los-architecture.html</code> — module này chỉ bổ sung <code>los.get_loan_plan</code>
+        và <code>los.get_rm_updates</code>, đồng thời chỉ rõ toàn bộ danh mục được đăng ký trên AgentGateway thay vì
+        Agent gọi trực tiếp MCP server của LOS.</p>
+    </div>
+  </section>
+
+  <!-- ============ MODULE 5 — AGENTGATEWAY ============ -->
+  <section id="gateway">
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <h2>Module 5 — AgentGateway</h2>
+      <p class="lead">Tầng kiểm soát trung tâm (theo mô hình AgentGateway của Linux Foundation) — điểm tập trung duy
+        nhất mà mọi tool call và mọi lệnh gọi LLM phải đi qua, bất kể tool đó thuộc Backend, LOS, Knowledge, hay một
+        Module Proxy/hệ thống ngoài khác được nối vào sau này.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="font-size:15px;margin-bottom:8px">Vai trò</h4>
+      <ul>
+        <li><b>Registry &amp; federation tool:</b> hợp nhất nhiều MCP server (Backend, Knowledge, LOS, Module Proxy…)
+          thành một danh mục tool duy nhất mà Agent thấy được, theo quyền được cấp.</li>
+        <li><b>AuthN/AuthZ tập trung:</b> xác thực danh tính Agent, áp <code>on_behalf_of</code> người dùng, RBAC theo
+          từng tool/scope — không hệ thống downstream nào tự kiểm tra quyền riêng.</li>
+        <li><b>Định tuyến &amp; quản trị LLM:</b> một điểm cấu hình cho nhiều model/provider — chọn model theo tác vụ,
+          fallback khi lỗi, cache theo prompt, kiểm soát chi phí/token.</li>
+        <li><b>Policy runtime:</b> rate limit, chặn tool nguy hiểm theo ngữ cảnh, ép hành động rủi ro cao thành
+          <code>proposed_action</code> trước khi tới hệ thống đích.</li>
+        <li><b>Observability &amp; audit bất biến:</b> log mọi lệnh gọi (tool, tham số, kết quả, model, token) — một
+          nguồn duy nhất phục vụ thanh tra, thay vì rải rác ở từng hệ thống.</li>
+      </ul>
+    </div>
+
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <h4 style="font-size:14.5px;margin-bottom:8px">Những gì được đăng ký qua Gateway</h4>
+        <p>
+          <span class="tag">backend.*</span>
+          <span class="tag v">knowledge.*</span>
+          <span class="tag g">los.* / party.* / collateral.* / creditmemo.*</span>
+          <span class="tag w">compliance.*</span>
+          <span class="tag sl">Module Proxy / hệ thống ngoài khác</span>
+          <span class="tag r">LLM providers (nhiều model)</span>
+        </p>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14.5px;margin-bottom:8px">Ví dụ policy cấu hình (minh hoạ)</h4>
+<pre><span class="c">// policy: agent "trolythamdinh" → tool "workflow.propose"</span>
+{
+  <span class="k">tool</span>: <span class="s">"workflow.propose"</span>,
+  <span class="k">effect</span>: <span class="s">"require_human_approval"</span>,
+  <span class="k">rate_limit</span>: <span class="s">"20/hour"</span>,
+  <span class="k">route</span>: <span class="s">"los-mcp-server:8443"</span>
+}
+<span class="c">// policy: model routing</span>
+{ <span class="k">task</span>: <span class="s">"spreading_and_dscr"</span>, <span class="k">model</span>: <span class="s">"reasoning-tier-1"</span>, <span class="k">fallback</span>: <span class="s">"reasoning-tier-2"</span> }</pre>
+      </div>
+    </div>
+
+    <div class="wire-scroll" style="margin-top:14px">
+      <svg viewBox="0 0 900 560" role="img" aria-label="Sơ đồ AgentGateway là hub trung tâm nối Agent Runtime với Backend, Knowledge, LOS, Module Proxy và các LLM">
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+        </defs>
+
+        <!-- Agent Runtime top -->
+        <rect x="330" y="20" width="240" height="56" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+        <text x="450" y="43" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)">Agent Runtime</text>
+        <text x="450" y="60" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Module 2 · một kết nối ra ngoài</text>
+
+        <line x1="450" y1="76" x2="450" y2="230" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah2)"/>
+
+        <!-- Gateway hub center -->
+        <rect x="310" y="232" width="280" height="76" rx="10" fill="var(--slate-soft)" stroke="var(--slate)" stroke-width="1.8"/>
+        <text x="450" y="264" text-anchor="middle" font-size="14.5" font-weight="600" fill="var(--text)">AgentGateway</text>
+        <text x="450" y="282" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">AuthN/AuthZ · policy · routing · audit</text>
+        <text x="450" y="297" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">Module 5</text>
+
+        <!-- spokes -->
+        <line x1="330" y1="280" x2="150" y2="380" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah2)"/>
+        <line x1="390" y1="308" x2="270" y2="400" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah2)"/>
+        <line x1="510" y1="308" x2="630" y2="400" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah2)"/>
+        <line x1="570" y1="280" x2="750" y2="380" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah2)"/>
+        <line x1="450" y1="308" x2="450" y2="400" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah2)"/>
+
+        <!-- downstream nodes -->
+        <rect x="60" y="382" width="180" height="60" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+        <text x="150" y="406" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Backend tiếp nhận</text>
+        <text x="150" y="422" text-anchor="middle" font-size="10" fill="var(--text-muted)">backend.* (Module 1)</text>
+
+        <rect x="200" y="402" width="180" height="60" rx="8" fill="var(--violet-soft)" stroke="var(--violet)" stroke-width="1.3"/>
+        <text x="290" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Knowledge / GraphRAG</text>
+        <text x="290" y="442" text-anchor="middle" font-size="10" fill="var(--text-muted)">knowledge.* (Module 3)</text>
+
+        <rect x="360" y="402" width="180" height="60" rx="8" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.3"/>
+        <text x="450" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">LOS &amp; Compliance</text>
+        <text x="450" y="442" text-anchor="middle" font-size="10" fill="var(--text-muted)">los.* / compliance.* (Module 4)</text>
+
+        <rect x="560" y="402" width="180" height="60" rx="8" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.3"/>
+        <text x="650" y="426" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">Module Proxy khác</text>
+        <text x="650" y="442" text-anchor="middle" font-size="10" fill="var(--text-muted)">hệ thống ngoài, mở rộng sau</text>
+
+        <rect x="660" y="382" width="180" height="60" rx="8" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.3"/>
+        <text x="750" y="406" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">LLM Providers</text>
+        <text x="750" y="422" text-anchor="middle" font-size="10" fill="var(--text-muted)">nhiều model, fallback/cache</text>
+
+        <text x="450" y="500" text-anchor="middle" font-size="11.5" fill="var(--text-muted)">Không có đường tắt: mọi hộp phía dưới chỉ nhận lệnh gọi đã đi qua AgentGateway.</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ END TO END FLOW ============ -->
+  <section id="flow">
+    <div class="sec-head">
+      <span class="sec-num">09</span>
+      <h2>Luồng end-to-end</h2>
+      <p class="lead">Ví dụ hồ sơ <span class="mono">LOS-2026-04871</span> đi qua đủ 5 module, từ lúc Kafka nhận
+        message tới khi kết quả hiển thị trên panel Agent trong LOS.</p>
+    </div>
+
+    <h4 style="font-size:15px;margin-bottom:10px">Sơ đồ minh hoạ: dòng dữ liệu cho Task 01 &amp; Task 02</h4>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Bám sát đúng 2 task đầu của hồ sơ trong
+      <code>appraisal-agent.html</code> — mỗi khối là một bước xử lý cụ thể, màu khối cho biết hệ thống nào đang
+      cầm dữ liệu tại bước đó.</p>
+
+    <div class="wire-scroll">
+      <svg viewBox="0 0 900 1100" role="img" aria-label="Sơ đồ khối minh hoạ dòng chạy dữ liệu cho Task 01 và Task 02 của hồ sơ LOS-2026-04871">
+        <defs>
+          <marker id="ah3" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+        </defs>
+
+        <!-- B0 -->
+        <rect x="100" y="20" width="700" height="44" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+        <text x="450" y="47" text-anchor="middle" font-size="12.5" fill="var(--text)">RM chuyển hồ sơ <tspan font-family="IBM Plex Mono, monospace">LOS-2026-04871</tspan> sang bước "Thẩm định"</text>
+        <line x1="450" y1="64" x2="450" y2="92" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B1 Kafka -->
+        <rect x="100" y="94" width="700" height="58" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+        <text x="118" y="116" font-size="12" fill="var(--text)">Kafka · topic <tspan font-family="IBM Plex Mono, monospace">los.case.intake</tspan></text>
+        <text x="118" y="136" font-size="11" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">{ case_id: "LOS-2026-04871", file_ids: ["doc_8841","doc_8842","doc_8843"] }</text>
+        <line x1="450" y1="152" x2="450" y2="180" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B2 Backend tạo case+task -->
+        <rect x="100" y="182" width="700" height="58" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+        <text x="118" y="204" font-size="12" fill="var(--text)">Backend (Module 1): consumer tạo Case + sinh 2 Task theo plan</text>
+        <text x="118" y="224" font-size="11" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">Task 01 = Trích xuất &amp; chuẩn hoá BCTC · Task 02 = Phân tích chỉ số &amp; DSCR · status: pending</text>
+        <line x1="450" y1="240" x2="450" y2="268" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B3 Gateway -->
+        <rect x="100" y="270" width="700" height="44" rx="8" fill="var(--slate-soft)" stroke="var(--slate)" stroke-width="1.3"/>
+        <text x="450" y="297" text-anchor="middle" font-size="12.5" fill="var(--text)">AgentGateway: xác thực agent_id, định tuyến job tới Agent Runtime</text>
+        <line x1="450" y1="314" x2="450" y2="342" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B4 Agent orchestrator -->
+        <rect x="100" y="344" width="700" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.3"/>
+        <text x="450" y="371" text-anchor="middle" font-size="12.5" fill="var(--text)">Agent Orchestrator: đọc plan, chạy lần lượt Task 01 → Task 02</text>
+        <line x1="450" y1="388" x2="450" y2="416" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- Frame Task 01 -->
+        <rect x="90" y="418" width="720" height="198" rx="10" fill="none" stroke="var(--border-strong)" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <rect x="90" y="407" width="380" height="22" rx="5" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="106" y="422" font-size="11.5" font-weight="600" fill="var(--accent-ink)">TASK 01 · Trích xuất &amp; chuẩn hoá BCTC</text>
+
+        <rect x="120" y="432" width="660" height="50" rx="7" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.2"/>
+        <text x="138" y="452" font-size="11.5" fill="var(--text)">Agent → Gateway → LOS: document.extract(file_id="doc_8841")</text>
+        <text x="138" y="470" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">→ dữ liệu BCTC thô + source_refs (doc_8841, tr.2–14)</text>
+        <line x1="450" y1="482" x2="450" y2="492" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah3)"/>
+
+        <rect x="120" y="492" width="660" height="50" rx="7" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.2"/>
+        <text x="138" y="512" font-size="11.5" fill="var(--text)">Agent → Gateway → LOS: spreading.normalize(statements)</text>
+        <text x="138" y="530" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">→ chuẩn hoá 3 kỳ 2023–2025 theo khung khoản mục chuẩn NH</text>
+        <line x1="450" y1="542" x2="450" y2="552" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah3)"/>
+
+        <rect x="120" y="552" width="660" height="50" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.2"/>
+        <text x="138" y="572" font-size="11.5" fill="var(--text)">Agent → Gateway → Backend: update_task_result(task_id="01", …)</text>
+        <text x="138" y="590" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">confidence: 0.94 · status: "done" → lưu vào Task/Result store</text>
+
+        <line x1="450" y1="616" x2="450" y2="646" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B5 Agent dependency -->
+        <rect x="100" y="646" width="700" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.3"/>
+        <text x="450" y="673" text-anchor="middle" font-size="12" fill="var(--text)">Agent: Task 01 xong (94%) → khởi động Task 02, dùng số liệu vừa chuẩn hoá làm input</text>
+        <line x1="450" y1="690" x2="450" y2="718" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- Frame Task 02 -->
+        <rect x="90" y="720" width="720" height="198" rx="10" fill="none" stroke="var(--border-strong)" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <rect x="90" y="709" width="380" height="22" rx="5" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.2"/>
+        <text x="106" y="724" font-size="11.5" font-weight="600" fill="var(--accent-ink)">TASK 02 · Phân tích chỉ số &amp; DSCR</text>
+
+        <rect x="120" y="734" width="660" height="50" rx="7" fill="var(--violet-soft)" stroke="var(--violet)" stroke-width="1.2"/>
+        <text x="138" y="754" font-size="11.5" fill="var(--text)">Agent → Gateway → Knowledge: query_case_context(case_id)</text>
+        <text x="138" y="772" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">→ lấy kết quả Task 01 (BCTC đã chuẩn hoá) + benchmark ngành</text>
+        <line x1="450" y1="784" x2="450" y2="794" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah3)"/>
+
+        <rect x="120" y="794" width="660" height="50" rx="7" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.2"/>
+        <text x="138" y="814" font-size="11.5" fill="var(--text)">Agent → Gateway → LOS: spreading.compute_ratios(case_id)</text>
+        <text x="138" y="832" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">→ DSCR = 1,25 · đòn bẩy = 1,72 · thanh khoản hiện hành = 1,38</text>
+        <line x1="450" y1="844" x2="450" y2="854" stroke="var(--border-strong)" stroke-width="1.4" marker-end="url(#ah3)"/>
+
+        <rect x="120" y="854" width="660" height="50" rx="7" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.2"/>
+        <text x="138" y="874" font-size="11.5" fill="var(--text)">Agent → Gateway → Backend: update_task_result(task_id="02", …)</text>
+        <text x="138" y="892" font-size="10.5" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">confidence: 0.88 · status: "done" → lưu vào Task/Result store</text>
+
+        <line x1="450" y1="918" x2="450" y2="946" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B6 Backend API -->
+        <rect x="100" y="948" width="700" height="44" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+        <text x="450" y="975" text-anchor="middle" font-size="12.5" fill="var(--text)">Backend: API tổng hợp trạng thái case — 2/9 task đã hoàn tất</text>
+        <line x1="450" y1="992" x2="450" y2="1020" stroke="var(--border-strong)" stroke-width="1.6" marker-end="url(#ah3)"/>
+
+        <!-- B7 UI -->
+        <rect x="100" y="1022" width="700" height="58" rx="8" fill="var(--blue-soft)" stroke="var(--blue)" stroke-width="1.3"/>
+        <text x="450" y="1044" text-anchor="middle" font-size="12" fill="var(--text)">UI panel Agent trong LOS (appraisal-agent.html) đọc API của Backend</text>
+        <text x="450" y="1064" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">→ hiển thị: Task 01 ✓ 94% · Task 02 ✓ 88%</text>
+      </svg>
+    </div>
+    <div class="wire-legend">
+      <span><i style="border-color:var(--blue)"></i>LOS UI / Backend (Module 1)</span>
+      <span><i style="border-color:var(--slate)"></i>AgentGateway (Module 5)</span>
+      <span><i style="border-color:var(--accent)"></i>Agent Runtime (Module 2)</span>
+      <span><i style="border-color:var(--gold)"></i>LOS — tool nghiệp vụ (Module 4)</span>
+      <span><i style="border-color:var(--violet)"></i>Knowledge / GraphRAG (Module 3)</span>
+    </div>
+
+    <h4 style="font-size:15px;margin:26px 0 10px">Mô tả dạng bước (đầy đủ 9 bước, không chỉ Task 01–02)</h4>
+    <div style="margin-bottom:14px">
+      <span class="lane backend">Backend</span> <span class="lane agent">Agent</span>
+      <span class="lane knowledge">Knowledge</span> <span class="lane los">LOS</span>
+      <span class="lane gateway">Gateway</span> <span class="lane human">Con người</span>
+    </div>
+
+    <div class="card">
+      <div class="flow">
+        <div class="fstep">
+          <div class="idx">1</div>
+          <div class="body">
+            <h4>Nhận message Kafka</h4>
+            <p><span class="lane backend">Backend</span> Consumer đọc <code>case.intake.received</code>, tạo Case,
+              lưu <code>file_ids</code>.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">2</div>
+          <div class="body">
+            <h4>Kích hoạt Agent</h4>
+            <p><span class="lane backend">Backend</span> → <span class="lane agent">Agent</span> Đẩy job vào hàng đợi
+              của Agent Runtime kèm <code>case_id</code>.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">3</div>
+          <div class="body">
+            <h4>Lập kế hoạch &amp; tạo task</h4>
+            <p><span class="lane agent">Agent</span> → <span class="lane gateway">Gateway</span> → <span class="lane backend">Backend</span>
+              Orchestrator sinh danh sách task theo skill, gọi <code>backend.create_tasks</code>.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">4</div>
+          <div class="body">
+            <h4>Truy hồi ngữ cảnh</h4>
+            <p><span class="lane agent">Agent</span> → <span class="lane gateway">Gateway</span> → <span class="lane knowledge">Knowledge</span>
+              &amp; <span class="lane los">LOS</span> Gọi <code>knowledge.find_similar_cases</code>,
+              <code>los.get_loan_plan</code>, <code>los.get_rm_updates</code> để có đủ ngữ cảnh trước khi phân tích.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">5</div>
+          <div class="body">
+            <h4>Chạy skill nghiệp vụ</h4>
+            <p><span class="lane agent">Agent</span> → <span class="lane gateway">Gateway</span> → <span class="lane los">LOS</span>
+              Thực thi từng skill (spreading, DSCR, CIC, pháp lý, TSBĐ…), mỗi kết quả kèm <code>source_refs</code>.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">6</div>
+          <div class="body">
+            <h4>Kiểm tra tuân thủ</h4>
+            <p><span class="lane los">LOS</span> Với đề xuất cấu trúc khoản vay, gọi <code>compliance.evaluate</code>
+              — nhận phán quyết pass/fail/review trước khi đưa vào tờ trình.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">7</div>
+          <div class="body">
+            <h4>Ghi kết quả từng task</h4>
+            <p><span class="lane agent">Agent</span> → <span class="lane gateway">Gateway</span> → <span class="lane backend">Backend</span>
+              Mỗi skill hoàn tất gọi <code>backend.update_task_result(task_id, result, confidence, source_refs)</code>.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">8</div>
+          <div class="body">
+            <h4>Hiển thị &amp; bàn giao</h4>
+            <p><span class="lane backend">Backend</span> → <span class="lane human">Con người</span> UI (panel Agent
+              trong LOS) đọc API của Backend, hiển thị 8/9 task hoàn tất, 3 điểm cần xác nhận — như trong
+              <code>appraisal-agent.html</code>.</p>
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="idx">9</div>
+          <div class="body">
+            <h4>Phản hồi vòng lặp học</h4>
+            <p><span class="lane human">Con người</span> → <span class="lane knowledge">Knowledge</span> Chỉnh sửa
+              của chuyên viên (nháp vs. bản cuối) được nạp lại vào Knowledge như một "bài học lịch sử" cho case sau.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h4 style="font-size:15px;margin:22px 0 10px">Chi tiết lượt gọi bước 4–7 (qua Gateway)</h4>
+    <div class="seq">
+      <div class="call">
+        <div class="dir">Agent → Gateway</div>
+        <div class="fn">knowledge.find_similar_cases({ industry: "chế biến nông sản", amount: 25e9 })</div>
+        <div class="ret">3 case tương tự, kèm trích dẫn quy tắc đã áp dụng</div>
+      </div>
+      <div class="call gw">
+        <div class="dir">Gateway</div>
+        <div class="fn">xác thực agent_id + on_behalf_of · áp rate limit · định tuyến tới knowledge-mcp-server</div>
+      </div>
+      <div class="call">
+        <div class="dir">Agent → Gateway</div>
+        <div class="fn">los.get_loan_plan(case_id) · los.get_rm_updates(case_id)</div>
+        <div class="ret">Đề nghị 25 tỷ, TSBĐ, ghi chú RM về mùa vụ thu mua</div>
+      </div>
+      <div class="call">
+        <div class="dir">Agent → Gateway</div>
+        <div class="fn">compliance.evaluate(proposal)</div>
+        <div class="ret">decision: "review", rule_id: "INT-AUTH-014" — thẩm quyền vay chưa đủ</div>
+      </div>
+      <div class="call">
+        <div class="dir">Agent → Gateway</div>
+        <div class="fn">backend.update_task_result(task_id="04", result={...}, confidence=0.91, status="needs_review")</div>
+        <div class="rem">Gateway ghi audit trace: <b>ai, tool nào, tham số, rule_id áp dụng, dấu thời gian</b>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ NFR ============ -->
+  <section id="nfr">
+    <div class="sec-head">
+      <span class="sec-num">10</span>
+      <h2>Vận hành, bảo mật &amp; khả năng mở rộng</h2>
+      <p class="lead">Các nguyên tắc bắt buộc để kiến trúc 5 module này an toàn và kiểm toán được trong môi trường ngân hàng.</p>
+    </div>
+
+    <div class="card">
+      <div class="principle"><span class="p-n">01</span><div><b>Một điểm vào duy nhất cho Agent.</b> Agent Runtime không giữ credential trực tiếp tới Backend/Knowledge/LOS — chỉ có cấu hình trỏ tới AgentGateway.</div></div>
+      <div class="principle"><span class="p-n">02</span><div><b>Idempotency cho mọi lệnh ghi.</b> <code>backend.update_task_result</code>, <code>backend.create_tasks</code> nhận <code>idempotency_key</code>/<code>version</code> — retry an toàn khi Kafka hoặc mạng gián đoạn.</div></div>
+      <div class="principle"><span class="p-n">03</span><div><b>Kafka có DLQ &amp; replay.</b> Message lỗi (file_id không hợp lệ, thiếu case) vào dead-letter queue; có khả năng replay theo case_id khi cần điều tra.</div></div>
+      <div class="principle"><span class="p-n">04</span><div><b>Audit trace hợp nhất tại Gateway.</b> Không log rải rác ở từng hệ thống — một nguồn duy nhất, bất biến, phục vụ thanh tra và tái hiện sự cố.</div></div>
+      <div class="principle"><span class="p-n">05</span><div><b>Knowledge tách "sự thật" và "gợi ý".</b> Dữ liệu từ LOS/Backend (nguồn gốc rõ) và tri thức tổng hợp/case tương tự (chỉ để tham khảo) phải phân loại rõ, không trộn lẫn khi trả cho Agent.</div></div>
+      <div class="principle"><span class="p-n">06</span><div><b>Định tuyến LLM có fallback &amp; giới hạn chi phí.</b> Gateway cấu hình model theo tác vụ, không hard-code trong Agent — đổi model không cần deploy lại Agent.</div></div>
+      <div class="principle"><span class="p-n">07</span><div><b>Hành động rủi ro cao luôn qua Approval Broker của LOS.</b> Dù đi qua Gateway, các tool ghi có tác động ngoài (gửi yêu cầu, đổi trạng thái hồ sơ) vẫn phải là <code>proposed_action</code>.</div></div>
+      <div class="principle"><span class="p-n">08</span><div><b>Mở rộng bằng đăng ký, không bằng sửa Agent.</b> Thêm một Module Proxy/hệ thống ngoài mới = đăng ký tool trên Gateway + cấp policy, Agent không cần biết sự tồn tại của hệ thống đó trước đó.</div></div>
+    </div>
+
+    <div class="card">
+      <h4 style="font-size:15px;margin-bottom:8px">Checklist trước khi go-live</h4>
+      <ul class="chk">
+        <li>Kafka: DLQ, idempotent consumer, giám sát lag theo case_id đã thiết lập.</li>
+        <li>AgentGateway: policy AuthN/AuthZ, rate limit, và audit log đã áp cho toàn bộ tool + LLM route.</li>
+        <li>Backend: API UI và tool cập nhật kết quả tách quyền đọc/ghi rõ ràng.</li>
+        <li>Knowledge: nguồn dữ liệu ingest có gắn <code>source_refs</code>, không có "tri thức" không truy được gốc.</li>
+        <li>LOS: <code>compliance.*</code> vẫn là chốt chặn cuối cho mọi nội dung tín dụng, không bị Gateway bỏ qua.</li>
+        <li>Có kịch bản replay/resume cho một case khi Agent hoặc Backend gặp lỗi giữa quy trình.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ ROADMAP ============ -->
+  <section id="roadmap">
+    <div class="sec-head">
+      <span class="sec-num">11</span>
+      <h2>Lộ trình triển khai gợi ý</h2>
+      <p class="lead">Xây từ trong ra ngoài: có Gateway + Backend trước, rồi mới nối Agent thật, sau đó mới mở rộng Knowledge.</p>
+    </div>
+
+    <div class="pstrip">
+      <div class="ps"><b>Phase 0</b>AgentGateway + policy nền tảng, chưa có tool thật</div>
+      <div class="ps"><b>Phase 1</b>Backend: Kafka intake + Task/Result store + API UI</div>
+      <div class="ps"><b>Phase 2</b>Agent Runtime + skill lõi, nối LOS tools có sẵn</div>
+      <div class="ps"><b>Phase 3</b>Knowledge/GraphRAG: nạp case lịch sử + tri thức chuyên gia</div>
+      <div class="ps"><b>Phase 4</b>Mở rộng Module Proxy khác, đa model LLM, vận hành production</div>
+    </div>
+  </section>
+
+  <!-- ============ TEAM SPLIT ============ -->
+  <section id="teams">
+    <div class="sec-head">
+      <span class="sec-num">12</span>
+      <h2>Phân công 2 team dev</h2>
+      <p class="lead">Chia theo đúng ranh giới module, không chia theo "ai giỏi cái gì" giữa chừng: <b>Team AI Agent</b>
+        sở hữu toàn bộ phần điều phối/agent/tri thức (Module 1, 2, 3, 5); <b>Team LOS</b> sở hữu toàn bộ nghiệp vụ
+        tín dụng (Module 4) — vì đây là phần LOS đã mạnh sẵn và không nên để team AI làm lại.</p>
+    </div>
+
+    <p style="margin-bottom:14px">
+      <span class="tag g">● Team AI Agent</span>
+      <span class="tag w">● Team LOS</span>
+    </p>
+
+    <div class="card">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Module</th><th>Team</th><th>Đầu việc cụ thể</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>1 · Backend tiếp nhận</b></td>
+              <td><span class="tag g">AI Agent</span></td>
+              <td>Kafka consumer (<code>case.intake.received</code>), data model Case/Task/TaskResult, API cho UI
+                (<code>GET /cases/{id}/tasks</code>, <code>GET /tasks/{id}/result</code>), tool ghi
+                <code>backend.create_tasks</code> / <code>backend.update_task_result</code>, idempotency &amp; DLQ.</td>
+            </tr>
+            <tr>
+              <td><b>2 · Agent</b></td>
+              <td><span class="tag g">AI Agent</span></td>
+              <td>Planner/Orchestrator, skill library (spreading, DSCR, pháp lý, TSBĐ, tờ trình…), MCP tool client,
+                bộ nhớ phiên, prompt/playbook, đánh giá &amp; cải thiện độ chính xác qua phản hồi.</td>
+            </tr>
+            <tr>
+              <td><b>3 · Knowledge (GraphRAG)</b></td>
+              <td><span class="tag g">AI Agent</span></td>
+              <td>Pipeline ingest, trích xuất thực thể/quan hệ, graph store + vector index, tool
+                <code>knowledge.*</code> (case tương tự, ghi chú chuyên gia, bài học lịch sử).</td>
+            </tr>
+            <tr>
+              <td><b>4 · LOS &amp; nghiệp vụ</b></td>
+              <td><span class="tag w">LOS</span></td>
+              <td>Toàn bộ danh mục tool nghiệp vụ (<code>document.*</code>, <code>spreading.*</code>,
+                <code>bureau.*</code>, <code>party.*</code>, <code>collateral.*</code>, <code>creditmemo.*</code>,
+                <code>workflow.*</code>, <code>notify.*</code>, <code>audit.*</code>, <code>compliance.*</code>,
+                <code>los.get_loan_plan</code>, <code>los.get_rm_updates</code>), Approval Broker, policy-as-code cho
+                <code>compliance.*</code>, và <b>phát sự kiện Kafka</b> <code>case.intake.received</code> khi RM
+                chuyển hồ sơ sang bước "Thẩm định".</td>
+            </tr>
+            <tr>
+              <td><b>5 · AgentGateway</b></td>
+              <td><span class="tag g">AI Agent</span> (vận hành) + <span class="tag w">LOS</span> (đăng ký tool)</td>
+              <td>Team AI Agent dựng &amp; vận hành hạ tầng Gateway: registry, AuthN/AuthZ, định tuyến LLM, policy,
+                audit log. Team LOS chỉ cần đăng ký schema/quyền cho các tool thuộc namespace <code>los.*</code> /
+                <code>compliance.*</code> của mình lên Gateway — không cần biết Agent gọi tool như thế nào.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h4 style="font-size:15px;margin-bottom:8px">Hợp đồng giao diện — 2 team phải cùng chốt trước khi code</h4>
+      <ul>
+        <li><b>Schema message Kafka</b> <code>case.intake.received</code> — LOS team là bên phát (publisher) khi
+          chuyển bước hồ sơ; AI Agent team là bên nhận (consumer). Hai bên chốt field, không đổi ngầm.</li>
+        <li><b>Schema tool <code>los.*</code> / <code>compliance.*</code></b> — LOS team định nghĩa input/output,
+          AI Agent team review theo góc nhìn "skill cần gì" để tránh tool thiếu trường agent phải dùng.</li>
+        <li><b>Mã lỗi chuẩn hoá</b> — LOS trả lỗi phân loại được (thiếu quyền / thiếu dữ liệu / vi phạm chính sách /
+          quá hạn mức) theo nguyên tắc đã có ở <code>agent-los-architecture.html</code>, để Agent xử lý đúng không
+          "đoán".</li>
+        <li><b>Bảng ánh xạ skill ↔ tool</b> — mỗi skill của Agent Team khai báo rõ cần tool nào của LOS Team; khi LOS
+          đổi tool (thêm trường, đổi version) phải báo trước qua Schema Registry.</li>
+        <li><b>SLA tool</b> — LOS team cam kết thời gian phản hồi cho từng tool nghiệp vụ (đặc biệt <code>bureau.*</code>,
+          <code>compliance.evaluate</code>) vì Agent chạy theo luồng đồng bộ trong một task.</li>
+      </ul>
+    </div>
+
+    <div class="callout-box">
+      <b>Không nên làm:</b> để Team AI Agent tự viết logic nghiệp vụ tín dụng (giới hạn cấp TD, thẩm quyền, DSCR tối
+      thiểu…) ngay trong skill/prompt — mọi thứ thuộc Module 4 phải gọi qua tool của Team LOS
+      (<code>compliance.*</code>), đúng nguyên tắc "Agent không tự diễn giải chính sách" đã đặt ra ở tài liệu kiến
+      trúc trước.
+    </div>
+  </section>
+
+</div>
+
+<footer class="note">
+  <div class="disc">
+    <b>Đây là bản thiết kế kiến trúc ở mức khái niệm (prototype).</b> Tên tool, message Kafka, schema và policy trong
+    tài liệu là minh hoạ để thống nhất cách chia module — không phải đặc tả kỹ thuật cuối cùng. Ranh giới trách
+    nhiệm giữa Agent và LOS (Agent đề xuất, con người quyết định) như mô tả trong
+    <code>agent-los-architecture.html</code> vẫn áp dụng cho toàn bộ nền tảng 5 module này.
+  </div>
+</footer>
+
+</body>
+</html>

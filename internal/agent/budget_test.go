@@ -61,7 +61,7 @@ func (m *loopingModel) Stream(ctx context.Context, in []*schema.Message, o ...mo
 
 func TestTurnEndsWithAnAnswerWhenTheBudgetRunsOut(t *testing.T) {
 	for _, budget := range []int{2, 4, 16} {
-		reg, err := tools.NewRegistry(nil, nil)
+		reg, err := tools.NewRegistry(nil, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestTurnEndsWithAnAnswerWhenTheBudgetRunsOut(t *testing.T) {
 		var evs []events.Event
 		asm := newAssembler(func(e events.Event) { evs = append(evs, e) })
 		history := []*einoMessage{{Role: schema.User, Content: "keep going"}}
-		if err := (&Agent{}).drive(ctx, ra, history, newCallbackHandler(asm)); err != nil {
+		if err := (&Agent{}).drive(ctx, ra, history, testCallbackHandler(asm)); err != nil {
 			t.Fatalf("budget %d: turn failed instead of answering: %v", budget, err)
 		}
 		blocks, _ := asm.result("end_turn")
@@ -110,7 +110,7 @@ func TestTurnEndsWithAnAnswerWhenTheBudgetRunsOut(t *testing.T) {
 // transcript ended with the budget warning, and keeps calling a tool until it is
 // told there is no more budget.
 func TestBudgetWarnsBeforeTheLastCall(t *testing.T) {
-	reg, err := tools.NewRegistry(nil, nil)
+	reg, err := tools.NewRegistry(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestBudgetWarnsBeforeTheLastCall(t *testing.T) {
 		t.Fatal(err)
 	}
 	asm := newAssembler(nil)
-	if err := (&Agent{}).drive(ctx, ra, []*einoMessage{{Role: schema.User, Content: "go"}}, newCallbackHandler(asm)); err != nil {
+	if err := (&Agent{}).drive(ctx, ra, []*einoMessage{{Role: schema.User, Content: "go"}}, testCallbackHandler(asm)); err != nil {
 		t.Fatal(err)
 	}
 	want := []bool{false, false, false, false, false, true, true, false} // calls 6 and 7: 3 and 2 left; call 8 is the wrap-up

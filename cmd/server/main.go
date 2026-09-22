@@ -96,7 +96,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	toolReg, err := buildToolRegistry(skillSvc, cfg)
+	toolReg, err := buildToolRegistry(skillSvc, cfg, st)
 	if err != nil {
 		log.Error("tool registry failed", "err", err)
 		os.Exit(1)

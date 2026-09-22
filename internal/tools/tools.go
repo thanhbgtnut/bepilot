@@ -48,7 +48,9 @@ type Registry struct {
 
 // NewRegistry builds the built-in tool set. httpAllowlist limits http_fetch to
 // the given hosts (empty = allow any host, which is only sensible in dev).
-func NewRegistry(skillSvc *skills.Service, httpAllowlist []string) (*Registry, error) {
+// taskResults may be nil, in which case save_task_result reports itself
+// unavailable instead of persisting anything.
+func NewRegistry(skillSvc *skills.Service, httpAllowlist []string, taskResults TaskResultWriter) (*Registry, error) {
 	r := &Registry{
 		builtin:  map[string]*Entry{},
 		deferred: map[string]*Entry{},
@@ -82,7 +84,11 @@ func NewRegistry(skillSvc *skills.Service, httpAllowlist []string) (*Registry, e
 	if err != nil {
 		return nil, err
 	}
-	for _, t := range []tool.InvokableTool{ct, calc, jv, hf, ls, ws, ts} {
+	str, err := newSaveTaskResultTool(taskResults)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range []tool.InvokableTool{ct, calc, jv, hf, ls, ws, ts, str} {
 		e, err := newEntry(context.Background(), t)
 		if err != nil {
 			return nil, err

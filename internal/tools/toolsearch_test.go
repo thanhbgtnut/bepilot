@@ -29,7 +29,7 @@ func fakeExternal(t *testing.T, name, desc string) tool.InvokableTool {
 
 func newReg(t *testing.T, external ...[2]string) *Registry {
 	t.Helper()
-	r, err := NewRegistry(nil, nil)
+	r, err := NewRegistry(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

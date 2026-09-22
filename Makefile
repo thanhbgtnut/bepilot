@@ -69,3 +69,7 @@ run: ## Run the API server
 .PHONY: dev
 dev: up migrate ## Bring up DB, migrate, then run the server
 	$(MAKE) run
+
+.PHONY: run-web
+run-web: ## Run the agent (:9090) and the frontend dev server together
+	./scripts/run-web.sh

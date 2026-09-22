@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo thẩm định — Công ty CP Thực phẩm Đồng Xanh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --bg: #F5F7F5;
+    --surface: #FFFFFF;
+    --surface-2: #EDF1EE;
+    --border: #D7DDD8;
+    --border-strong: #C2CBC4;
+    --text: #16211C;
+    --text-muted: #59665F;
+    --accent: #0E6E56;
+    --accent-ink: #0A4F3E;
+    --accent-soft: #DEEDE6;
+    --gold: #9A7128;
+    --gold-soft: #F0E6D0;
+    --good: #1F7A4D;
+    --warn: #93610F;
+    --crit: #B23F35;
+    --good-soft: #DCEDE2;
+    --warn-soft: #F3E7CF;
+    --crit-soft: #F2DEDB;
+    --shadow: 0 1px 2px rgba(22, 33, 28, .04), 0 8px 24px -12px rgba(22, 33, 28, .12);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1613;
+      --surface: #14201C;
+      --surface-2: #1C2A25;
+      --border: #2A3A34;
+      --border-strong: #3A4D45;
+      --text: #E7ECE8;
+      --text-muted: #98A69E;
+      --accent: #3DBF9B;
+      --accent-ink: #7FD9C2;
+      --accent-soft: #123329;
+      --gold: #CBA35E;
+      --gold-soft: #2E2716;
+      --good: #46C07E;
+      --warn: #D69A3E;
+      --crit: #E0685C;
+      --good-soft: #14301F;
+      --warn-soft: #322611;
+      --crit-soft: #34211E;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px -14px rgba(0, 0, 0, .55);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0E1613;
+    --surface: #14201C;
+    --surface-2: #1C2A25;
+    --border: #2A3A34;
+    --border-strong: #3A4D45;
+    --text: #E7ECE8;
+    --text-muted: #98A69E;
+    --accent: #3DBF9B;
+    --accent-ink: #7FD9C2;
+    --accent-soft: #123329;
+    --gold: #CBA35E;
+    --gold-soft: #2E2716;
+    --good: #46C07E;
+    --warn: #D69A3E;
+    --crit: #E0685C;
+    --good-soft: #14301F;
+    --warn-soft: #322611;
+    --crit-soft: #34211E;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px -14px rgba(0, 0, 0, .55);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: "Spectral", Georgia, serif; font-weight: 500; text-wrap: balance; margin: 0; }
+
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+
+  a { color: var(--accent-ink); }
+
+  /* ---------- Report header ---------- */
+  .rpt-header {
+    padding: 18px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .rpt-header .block { display: flex; flex-direction: column; gap: 3px; }
+  .rpt-header .val { font-size: 15px; font-weight: 600; }
+  .rpt-header .val.big { font-family: "Spectral", serif; font-size: 19px; font-weight: 600; }
+
+  .los-tag {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .los-tag .mono { color: var(--text); font-weight: 500; }
+
+  .pipeline { display: flex; align-items: center; gap: 0; margin-left: auto; flex-wrap: wrap; }
+  .stage {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 0 12px; position: relative; min-width: 78px;
+  }
+  .stage:not(:last-child)::after {
+    content: ""; position: absolute; right: -0px; top: 9px;
+    width: 22px; height: 1px; background: var(--border-strong);
+  }
+  .stage .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border-strong); background: var(--surface);
+    display: grid; place-items: center; font-size: 10px; color: var(--text-muted);
+  }
+  .stage.done .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .stage.active .dot { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+  .stage .lbl { font-size: 10.5px; color: var(--text-muted); text-align: center; line-height: 1.3; }
+  .stage.active .lbl { color: var(--text); font-weight: 600; }
+
+  /* ---------- Layout ---------- */
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 22px 24px 48px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 22px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .wrap { grid-template-columns: 1fr; }
+    .pipeline { margin-left: 0; }
+  }
+
+  section.panel { min-width: 0; }
+
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .section-head h2 { font-size: 18px; }
+  .section-head .hint { font-size: 11.5px; color: var(--text-muted); }
+
+  /* summary tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+  @media (max-width: 620px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 13px 13px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .tile .n { font-family: "Spectral", serif; font-size: 24px; font-weight: 600; line-height: 1.1; }
+  .tile .k { font-size: 11px; color: var(--text-muted); }
+  .tile .d { font-size: 10.5px; color: var(--accent-ink); font-weight: 500; margin-top: 2px; }
+
+  /* worklog */
+  .log { display: flex; flex-direction: column; gap: 11px; }
+
+  .task {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .task > .task-head {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 24px minmax(0,1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 13px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .task-head:hover { background: var(--surface-2); }
+  .task-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .task-idx { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--text-muted); }
+
+  .task-title { font-size: 14px; font-weight: 600; }
+  .task-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+
+  .task-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+
+  .conf { display: flex; flex-direction: column; gap: 4px; width: 88px; }
+  .conf .lab { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+  .conf .bar { height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+  .conf .bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+  .conf .pct { font-size: 11px; font-weight: 600; font-family: "IBM Plex Mono", monospace; }
+
+  .badge {
+    font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+    white-space: nowrap; border: 1px solid transparent;
+  }
+  .badge.done { background: var(--good-soft); color: var(--good); }
+  .badge.review { background: var(--warn-soft); color: var(--warn); }
+  .badge.wait { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+
+  .chev { color: var(--text-muted); transition: transform .18s ease; flex: none; }
+  .task.open .chev { transform: rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+
+  .task-body { display: none; padding: 4px 15px 17px 52px; border-top: 1px solid var(--border); }
+  .task.open .task-body { display: block; }
+
+  .task-body h4 { margin: 13px 0 6px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); font-family: "IBM Plex Sans", sans-serif; font-weight: 600; }
+  .task-body p { margin: 0 0 6px; font-size: 13px; }
+  .task-body ul { margin: 4px 0; padding-left: 18px; font-size: 13px; }
+  .task-body li { margin: 3px 0; }
+
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 16px; margin: 8px 0 4px; }
+  .kv div { font-size: 12.5px; }
+  .kv span { display: block; font-size: 10.5px; color: var(--text-muted); }
+  .kv b { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+
+  .flag { color: var(--crit); font-weight: 600; }
+
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .src {
+    font-size: 10.5px; padding: 3px 8px; border-radius: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+
+  .task-actions { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
+  .btn {
+    font: inherit; font-size: 12px; font-weight: 600;
+    padding: 7px 12px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- Sidebar ---------- */
+  aside { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 18px; }
+  @media (max-width: 860px) { aside { position: static; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 15px 15px 17px;
+  }
+
+  .card > h3 { font-size: 15px; margin-bottom: 4px; }
+  .card .sub { font-size: 11.5px; color: var(--text-muted); margin-bottom: 13px; }
+
+  .feed { display: flex; flex-direction: column; }
+  .feed .item { display: grid; grid-template-columns: 14px 1fr; gap: 10px; padding: 8px 0; font-size: 12px; position: relative; }
+  .feed .item:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .feed .item .t { color: var(--text-muted); font-size: 10.5px; font-family: "IBM Plex Mono", monospace; }
+  .feed .item .dot2 { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--accent); }
+  .feed .item .dot2.gold { background: var(--gold); }
+  .feed .item .dot2.warn { background: var(--warn); }
+
+  .approvers { display: flex; flex-direction: column; gap: 10px; }
+  .approver { display: flex; align-items: center; gap: 10px; }
+  .approver .ava {
+    width: 30px; height: 30px; flex: none; border-radius: 50%;
+    background: var(--surface-2); border: 1px solid var(--border);
+    display: grid; place-items: center; font-family: "Spectral", serif; font-weight: 600; font-size: 12.5px;
+  }
+  .approver .name { font-size: 12.5px; font-weight: 600; }
+  .approver .role { font-size: 10.5px; color: var(--text-muted); }
+  .approver .stat { margin-left: auto; }
+
+  footer.note {
+    max-width: 1180px; margin: 0 auto; padding: 0 24px 40px;
+    font-size: 11.5px; color: var(--text-muted);
+  }
+  footer.note .disc {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold);
+    border-radius: 8px; padding: 12px 15px;
+  }
+</style>
+</head>
+<body>
+
+<div class="rpt-header">
+  <div class="block">
+    <span class="eyebrow">Bên vay</span>
+    <span class="val big">Công ty CP Thực phẩm Đồng Xanh</span>
+    <span class="los-tag">Hồ sơ <span class="mono">LOS-2026-04871</span> · Chế biến nông sản · MST <span class="mono">0312xxxxxx</span></span>
+  </div>
+  <div class="block">
+    <span class="eyebrow">Đề nghị cấp tín dụng</span>
+    <span class="val big mono">25,0 tỷ VND</span>
+    <span class="los-tag">Hạn mức vốn lưu động · 12 tháng · TSBĐ: BĐS + hàng tồn kho</span>
+  </div>
+  <div class="pipeline" aria-label="Tiến trình hồ sơ">
+    <div class="stage done"><div class="dot">✓</div><div class="lbl">Tiếp nhận<br>hồ sơ</div></div>
+    <div class="stage active"><div class="dot">2</div><div class="lbl">Thẩm định<br>(AI đã sơ bộ)</div></div>
+    <div class="stage"><div class="dot">3</div><div class="lbl">Chuyên viên<br>rà soát</div></div>
+    <div class="stage"><div class="dot">4</div><div class="lbl">Phê duyệt</div></div>
+    <div class="stage"><div class="dot">5</div><div class="lbl">Giải ngân</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section class="panel">
+    <div class="tiles">
+      <div class="tile">
+        <span class="n">8/9</span>
+        <span class="k">Đầu việc thẩm định đã hoàn tất</span>
+        <span class="d">1 việc chờ dữ liệu từ bên vay</span>
+      </div>
+      <div class="tile">
+        <span class="n">~6,5 giờ</span>
+        <span class="k">Thời gian tác nghiệp tiết kiệm</span>
+        <span class="d">so với quy trình thủ công</span>
+      </div>
+      <div class="tile">
+        <span class="n">3</span>
+        <span class="k">Nội dung cần chuyên viên xác nhận</span>
+        <span class="d" style="color:var(--warn)">2 mức cao · 1 mức trung bình</span>
+      </div>
+      <div class="tile">
+        <span class="n">82%</span>
+        <span class="k">Mức độ sẵn sàng của tờ trình</span>
+        <span class="d">Dự thảo đã gắn vào hồ sơ LOS</span>
+      </div>
+    </div>
+
+    <div class="section-head">
+      <h2>Công việc Trợ lý đã thực hiện</h2>
+      <span class="hint">Nhấn từng dòng để xem chi tiết &amp; nguồn dữ liệu</span>
+    </div>
+
+    <div class="log">
+
+      <!-- 1 -->
+      <article class="task open">
+        <button class="task-head" aria-expanded="true">
+          <span class="task-idx">01</span>
+          <span>
+            <span class="task-title">Trích xuất &amp; chuẩn hóa báo cáo tài chính 2023–2025</span>
+            <span class="task-meta">Spreading 3 kỳ · 148 dòng khoản mục · đối chiếu thuyết minh</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:94%"></i></span><span class="pct">94%</span></span>
+            <span class="badge done">Hoàn thành</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả</h4>
+          <p>Đã bóc tách bảng cân đối kế toán, kết quả kinh doanh và lưu chuyển tiền tệ 3 năm từ file PDF kiểm toán, ánh xạ về khung khoản mục chuẩn của ngân hàng.</p>
+          <div class="kv">
+            <div><span>Doanh thu thuần 2025</span><b>412,7 tỷ</b></div>
+            <div><span>Tăng trưởng DT bình quân</span><b>+11,3%/năm</b></div>
+            <div><span>LNST 2025</span><b>18,4 tỷ</b></div>
+            <div><span>Chênh lệch cần đối chiếu</span><b>2 khoản mục</b></div>
+          </div>
+          <h4>Lưu ý cho chuyên viên</h4>
+          <ul>
+            <li>Khoản "phải thu khác" tăng đột biến 6,1 tỷ trong Q4/2025 — thuyết minh chưa làm rõ đối tượng.</li>
+            <li>BCTC 2025 là bản do doanh nghiệp lập, <b>chưa có báo cáo kiểm toán</b> chính thức.</li>
+          </ul>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">📄 BCTC kiểm toán 2023–2024</span>
+            <span class="src">📄 BCTC nội bộ 2025</span>
+            <span class="src">📄 Tờ khai quyết toán thuế TNDN</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Xác nhận số liệu</button>
+            <button class="btn">Yêu cầu bổ sung BCTC kiểm toán</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">02</span>
+          <span>
+            <span class="task-title">Phân tích chỉ số tài chính &amp; khả năng trả nợ</span>
+            <span class="task-meta">Thanh khoản · đòn bẩy · hiệu quả · dòng tiền trả nợ (DSCR)</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:88%"></i></span><span class="pct">88%</span></span>
+            <span class="badge done">Hoàn thành</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả</h4>
+          <div class="kv">
+            <div><span>Hệ số thanh toán hiện hành</span><b>1,38 lần</b></div>
+            <div><span>Nợ vay / VCSH</span><b>1,72 lần</b></div>
+            <div><span>Vòng quay hàng tồn kho</span><b>5,1 vòng</b></div>
+            <div><span>Kỳ thu tiền bình quân</span><b>58 ngày</b></div>
+            <div><span>DSCR ước tính</span><b>1,25 lần</b></div>
+            <div><span>Biên LN gộp</span><b>14,7%</b></div>
+          </div>
+          <p>Cấu trúc tài chính ở mức chấp nhận được cho ngành chế biến nông sản; đòn bẩy nhỉnh hơn trung bình ngành (1,5 lần). DSCR 1,25 vẫn trên ngưỡng tối thiểu 1,2 theo chính sách tín dụng.</p>
+          <h4>Lưu ý cho chuyên viên</h4>
+          <ul>
+            <li>DSCR nhạy cảm với giả định biên lợi nhuận — nếu biên LN gộp giảm 2 điểm %, DSCR về 1,08.</li>
+          </ul>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">🧮 Số liệu spreading (việc 01)</span>
+            <span class="src">📊 Bộ chỉ số trung bình ngành — nội bộ NH</span>
+            <span class="src">📄 Phương án kinh doanh của bên vay</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Chấp nhận phân tích</button>
+            <button class="btn">Chạy lại với kịch bản riêng</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">03</span>
+          <span>
+            <span class="task-title">Tra cứu CIC &amp; lịch sử quan hệ tín dụng</span>
+            <span class="task-meta">Nhóm nợ · dư nợ tại các TCTD · nhóm khách hàng liên quan</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:97%"></i></span><span class="pct">97%</span></span>
+            <span class="badge done">Hoàn thành</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả</h4>
+          <div class="kv">
+            <div><span>Nhóm nợ hiện tại (CIC)</span><b>Nhóm 1</b></div>
+            <div><span>Tổng dư nợ tại 3 TCTD</span><b>67,4 tỷ</b></div>
+            <div><span>Nợ quá hạn 12 tháng gần nhất</span><b>Không</b></div>
+            <div><span>Người liên quan có dư nợ</span><b>2 cá nhân</b></div>
+          </div>
+          <p>Lịch sử tín dụng sạch trong 24 tháng. Chủ tịch HĐQT có 1 khoản vay tiêu dùng 1,8 tỷ (Nhóm 1). Không phát hiện thông tin tại danh sách cảnh báo nội bộ.</p>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">🔎 Báo cáo CIC — bản R11</span>
+            <span class="src">🗂️ Kho dữ liệu KH nội bộ (T24)</span>
+            <span class="src">⚠️ Danh sách cảnh báo / hạn chế cấp TD</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Đưa vào tờ trình</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 4 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">04</span>
+          <span>
+            <span class="task-title">Rà soát hồ sơ pháp lý &amp; thẩm quyền vay vốn</span>
+            <span class="task-meta">ĐKKD · điều lệ · nghị quyết HĐQT · người đại diện</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:91%"></i></span><span class="pct">91%</span></span>
+            <span class="badge review">Cần xác nhận</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả</h4>
+          <p>Bộ hồ sơ pháp lý cơ bản đầy đủ và còn hiệu lực. Ngành nghề kinh doanh phù hợp với mục đích vay.</p>
+          <h4>Lưu ý cho chuyên viên</h4>
+          <ul>
+            <li class="flag">Nghị quyết HĐQT phê duyệt phương án vay có giá trị 20 tỷ — <b>thấp hơn</b> mức đề nghị 25 tỷ. Cần yêu cầu nghị quyết bổ sung.</li>
+            <li>Điều lệ quy định giao dịch trên 15% tổng tài sản phải qua ĐHĐCĐ — khoản vay ước tính ~11% tổng tài sản, chưa vượt ngưỡng.</li>
+          </ul>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">📄 GCN ĐKDN (cập nhật 03/2025)</span>
+            <span class="src">📄 Điều lệ công ty</span>
+            <span class="src">📄 Nghị quyết HĐQT số 04/2026</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Tạo yêu cầu bổ sung nghị quyết</button>
+            <button class="btn">Đánh dấu đã xử lý</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 5 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">05</span>
+          <span>
+            <span class="task-title">Phân tích ngành &amp; vị thế cạnh tranh</span>
+            <span class="task-meta">Chế biến nông sản xuất khẩu · chuỗi cung ứng · rủi ro giá nguyên liệu</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:73%"></i></span><span class="pct">73%</span></span>
+            <span class="badge done">Hoàn thành</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả</h4>
+          <p>Ngành có triển vọng ổn định, cầu xuất khẩu sang thị trường Đông Á duy trì tốt. Rủi ro chính là biến động giá nguyên liệu đầu vào theo mùa vụ và tỷ giá. Doanh nghiệp thuộc nhóm quy mô vừa, có 3 khách hàng chiếm ~55% doanh thu — mức tập trung khách hàng đáng lưu ý.</p>
+          <h4>Lưu ý cho chuyên viên</h4>
+          <ul>
+            <li>Độ tin cậy thấp hơn: một phần nhận định dựa trên dữ liệu ngành đến Q2/2025, chưa cập nhật quý gần nhất.</li>
+          </ul>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">📚 Báo cáo ngành nội bộ — Khối Nghiên cứu</span>
+            <span class="src">📄 Hợp đồng đầu ra bên vay cung cấp</span>
+            <span class="src">🌐 Số liệu XNK — Tổng cục Hải quan</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Chấp nhận</button>
+            <button class="btn">Bổ sung dữ liệu ngành mới nhất</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 6 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">06</span>
+          <span>
+            <span class="task-title">Kiểm tra dấu hiệu cảnh báo sớm</span>
+            <span class="task-meta">Giao dịch bên liên quan · dòng tiền bất thường · tính nhất quán số liệu</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:69%"></i></span><span class="pct">69%</span></span>
+            <span class="badge review">Cần xác nhận</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả — 2 điểm cần làm rõ</h4>
+          <ul>
+            <li class="flag">Phát sinh cho vay 4,2 tỷ đối với công ty do em ruột Tổng giám đốc sở hữu, kỳ hạn không rõ, lãi suất 0%.</li>
+            <li class="flag">Doanh thu Q4/2025 tăng 34% so với cùng kỳ nhưng dòng tiền từ HĐKD cùng kỳ âm — chênh lệch do tăng mạnh khoản phải thu.</li>
+          </ul>
+          <p>Các dấu hiệu này chưa đủ kết luận rủi ro gian lận, nhưng vượt ngưỡng cần chuyên viên phỏng vấn trực tiếp và kiểm tra thực địa.</p>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">📄 Thuyết minh BCTC — mục bên liên quan</span>
+            <span class="src">🧮 Đối chiếu DT &amp; dòng tiền (việc 02)</span>
+            <span class="src">🗂️ Sơ đồ sở hữu doanh nghiệp</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Lập phiếu phỏng vấn khách hàng</button>
+            <button class="btn">Lên lịch kiểm tra thực địa</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 7 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">07</span>
+          <span>
+            <span class="task-title">Định giá sơ bộ tài sản bảo đảm</span>
+            <span class="task-meta">QSD đất + nhà xưởng · hàng tồn kho luân chuyển</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:64%"></i></span><span class="pct">64%</span></span>
+            <span class="badge done">Hoàn thành</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Kết quả (ước tính, chờ thẩm định giá độc lập)</h4>
+          <div class="kv">
+            <div><span>BĐS — nhà xưởng KCN</span><b>~31 tỷ</b></div>
+            <div><span>Hàng tồn kho nhận thế chấp (70%)</span><b>~9 tỷ</b></div>
+            <div><span>Tổng giá trị TSBĐ ước tính</span><b>~40 tỷ</b></div>
+            <div><span>Tỷ lệ cấp tín dụng / TSBĐ</span><b>~63%</b></div>
+          </div>
+          <p>Giá BĐS tham chiếu từ giao dịch trong cùng KCN 12 tháng gần nhất. Cần Phòng Thẩm định giá / đơn vị độc lập định giá chính thức trước khi phê duyệt.</p>
+          <h4>Nguồn dữ liệu</h4>
+          <div class="sources">
+            <span class="src">📄 GCN QSD đất, tài sản gắn liền</span>
+            <span class="src">🏭 CSDL giá BĐS khu công nghiệp — nội bộ</span>
+            <span class="src">📦 Biên bản kiểm kê hàng tồn kho</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn primary">Chuyển Phòng Thẩm định giá</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 8 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">08</span>
+          <span>
+            <span class="task-title">Dự thảo tờ trình thẩm định &amp; đề xuất cấu trúc khoản vay</span>
+            <span class="task-meta">14 trang · theo mẫu TT-KHDN-02 · đã gắn vào hồ sơ LOS</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:82%"></i></span><span class="pct">82%</span></span>
+            <span class="badge done">Bản nháp</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Đề xuất của Trợ lý</h4>
+          <div class="kv">
+            <div><span>Hạn mức đề xuất</span><b>22,0 tỷ</b></div>
+            <div><span>Thời hạn</span><b>12 tháng</b></div>
+            <div><span>Lãi suất tham chiếu</span><b>Sàn + 3,2%</b></div>
+            <div><span>Điều kiện tiên quyết</span><b>4 điều kiện</b></div>
+          </div>
+          <p>Đề xuất cấp thấp hơn mức đề nghị (22 tỷ thay vì 25 tỷ) do giới hạn DSCR và giá trị TSBĐ ước tính. Kèm 4 điều kiện tiên quyết: BCTC kiểm toán 2025, nghị quyết HĐQT bổ sung, thẩm định giá độc lập, và giải trình khoản phải thu / cho vay bên liên quan.</p>
+          <h4>Phần cần chuyên viên hoàn thiện</h4>
+          <ul>
+            <li>Kết luận &amp; ý kiến đề xuất cấp tín dụng (mục 9) — để trống chờ chuyên viên.</li>
+            <li>Đánh giá định tính về năng lực quản trị điều hành sau khi phỏng vấn.</li>
+          </ul>
+          <div class="task-actions">
+            <button class="btn primary">Mở tờ trình trong LOS</button>
+            <button class="btn">Tải bản Word</button>
+            <button class="btn">Xem nhật ký chỉnh sửa</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- 9 -->
+      <article class="task">
+        <button class="task-head" aria-expanded="false">
+          <span class="task-idx">09</span>
+          <span>
+            <span class="task-title">Kiểm tra tuân thủ giới hạn cấp tín dụng &amp; nhóm KH liên quan</span>
+            <span class="task-meta">Giới hạn 1 KH / nhóm KH · room ngành · tỷ lệ an toàn</span>
+          </span>
+          <span class="task-right">
+            <span class="conf"><span class="lab">Độ tin cậy</span><span class="bar"><i style="width:40%"></i></span><span class="pct">—</span></span>
+            <span class="badge wait">Chờ dữ liệu</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="task-body">
+          <h4>Đang chờ</h4>
+          <p>Cần bên vay cung cấp danh sách công ty con / công ty liên kết cập nhật và tỷ lệ sở hữu chéo để xác định đầy đủ nhóm khách hàng liên quan. Đã tạo yêu cầu bổ sung hồ sơ trong LOS (hạn: 29/08/2026).</p>
+          <div class="task-actions">
+            <button class="btn">Xem yêu cầu bổ sung hồ sơ</button>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h3>Người phê duyệt tiếp theo</h3>
+      <div class="sub">Theo phân cấp thẩm quyền hồ sơ LOS-2026-04871</div>
+      <div class="approvers">
+        <div class="approver">
+          <span class="ava">LH</span>
+          <span>
+            <span class="name" style="display:block">Chuyên viên thẩm định</span>
+            <span class="role">Rà soát nội dung Trợ lý đã thực hiện</span>
+          </span>
+          <span class="badge review stat">Đang chờ</span>
+        </div>
+        <div class="approver">
+          <span class="ava">TB</span>
+          <span>
+            <span class="name" style="display:block">Trưởng phòng KHDN</span>
+            <span class="role">Phê duyệt cấp phòng</span>
+          </span>
+          <span class="badge wait stat">Chưa tới lượt</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Nhật ký hoạt động</h3>
+      <div class="sub">Hồ sơ LOS-2026-04871</div>
+      <div class="feed">
+        <div class="item"><span class="dot2"></span><span>Hoàn tất dự thảo tờ trình, gắn vào hồ sơ LOS <span class="t">10:42 hôm nay</span></span></div>
+        <div class="item"><span class="dot2 warn"></span><span>Đánh dấu 3 nội dung cần chuyên viên xác nhận <span class="t">10:31</span></span></div>
+        <div class="item"><span class="dot2"></span><span>Tạo 2 yêu cầu bổ sung hồ sơ gửi RM <span class="t">10:05</span></span></div>
+        <div class="item"><span class="dot2 gold"></span><span>Ghi nhận phản hồi chuyên viên ở hồ sơ trước → cập nhật quy tắc kiểm tra bên liên quan <span class="t">Hôm qua</span></span></div>
+        <div class="item"><span class="dot2"></span><span>Nhận hồ sơ từ bước Tiếp nhận, bắt đầu thẩm định sơ bộ <span class="t">08:15</span></span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<footer class="note">
+  <div class="disc">
+    <b>Đây là bản prototype minh họa khái niệm.</b> Toàn bộ số liệu, tên doanh nghiệp và hồ sơ là hư cấu. Trợ lý Thẩm định thực hiện phần việc chuẩn bị và phân tích sơ bộ; mọi kết luận cấp tín dụng và quyết định phê duyệt vẫn do chuyên viên thẩm định và cấp có thẩm quyền của ngân hàng chịu trách nhiệm. Trong triển khai thật, trang này được thay bằng báo cáo thẩm định đầy đủ do hệ thống LOS lưu trữ (trỏ qua <code>data-report-url</code>).
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll(".task-head").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var task = btn.closest(".task");
+      var open = task.classList.toggle("open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  });
+</script>
+
+</body>
+</html>

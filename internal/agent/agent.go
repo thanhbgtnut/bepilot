@@ -287,6 +287,7 @@ func (a *Agent) runTurn(ctx context.Context, ar *activeRun, in RunInput, sink ev
 	}
 	boundTools := append(toolSess.Executable(), clientTools...)
 	ctx = tools.WithSession(ctx, toolSess)
+	ctx = tools.WithRunSessionID(ctx, sess.ID)
 
 	// 5. Build the dynamic system prompt.
 	sysOverride := strings.TrimSpace(strings.Join([]string{sess.SystemOverride, in.RequestSystem}, "\n\n"))
@@ -340,7 +341,7 @@ func (a *Agent) runTurn(ctx context.Context, ar *activeRun, in RunInput, sink ev
 	}
 	asm.messageStart(messageID, in.Model, sess.ID.String(), estIn)
 
-	handler := newCallbackHandler(asm)
+	handler := newCallbackHandler(asm, a.log, in.Model)
 	runErr := a.drive(ctx, reactAgent, einoHistory, handler)
 	// The model has read its inbox for the last time. Anything that arrives from
 	// here on is run as a turn of its own; what arrived too late for the model

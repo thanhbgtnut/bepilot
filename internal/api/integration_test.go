@@ -77,7 +77,7 @@ func setup(t *testing.T) *testEnv {
 		t.Fatal(err)
 	}
 
-	toolReg, err := tools.NewRegistry(skillSvc, nil)
+	toolReg, err := tools.NewRegistry(skillSvc, nil, st.TaskResults)
 	if err != nil {
 		t.Fatalf("tools: %v", err)
 	}
@@ -120,7 +120,7 @@ func setup(t *testing.T) *testEnv {
 
 func truncate(t *testing.T, st *store.Store) {
 	_, err := st.Pool.Exec(context.Background(),
-		`TRUNCATE users, api_keys, sessions, messages, content_blocks, agent_runs RESTART IDENTITY CASCADE`)
+		`TRUNCATE users, api_keys, sessions, messages, content_blocks, agent_runs, task_results RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("truncate: %v", err)
 	}

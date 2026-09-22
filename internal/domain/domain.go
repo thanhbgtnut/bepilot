@@ -139,3 +139,19 @@ type AgentRun struct {
 	Detail    map[string]any
 	CreatedAt time.Time
 }
+
+// TaskResult is one skill task's structured output for a session (e.g. a
+// checklist review or an information-extraction pass). It is kept separate
+// from the message transcript specifically so a client can read it — for a
+// "full report" view — without going through the agent run that produced it:
+// a plain row read, unaffected by the agent/LLM pipeline being broken or slow.
+// A second save with the same (SessionID, TaskKey) replaces the previous one.
+type TaskResult struct {
+	ID        uuid.UUID
+	SessionID uuid.UUID
+	TaskKey   string
+	Title     string
+	Result    map[string]any
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}

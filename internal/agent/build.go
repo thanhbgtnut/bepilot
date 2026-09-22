@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 
 	"github.com/cloudwego/eino/callbacks"
 	einomodel "github.com/cloudwego/eino/components/model"
@@ -87,8 +88,22 @@ func bufferedToolCallChecker(_ context.Context, sr *schema.StreamReader[*schema.
 // newCallbackHandler wires eino model/tool callbacks into the assembler. Model
 // output streams are consumed synchronously so that a model call's content
 // blocks are fully closed before the tool node runs.
-func newCallbackHandler(a *assembler) callbacks.Handler {
+//
+// log receives one line per model call giving the approximate size of the
+// transcript being sent, tagged with modelID. A turn that loops through many
+// tool rounds keeps re-sending the whole transcript so far on every call, and
+// nothing else in the run records how large that got — when a call fails
+// against an upstream with a context or request-size limit tighter than
+// expected, this is what lets that be told apart from a genuinely transient
+// failure after the fact, from the log alone.
+func newCallbackHandler(a *assembler, log *slog.Logger, modelID string) callbacks.Handler {
 	model := &ucb.ModelCallbackHandler{
+		OnStart: func(ctx context.Context, _ *callbacks.RunInfo, in *einomodel.CallbackInput) context.Context {
+			if in != nil {
+				log.Debug("model call", "model", modelID, "messages", len(in.Messages), "approx_tokens", approxMessagesTokens(in.Messages))
+			}
+			return ctx
+		},
 		OnEndWithStreamOutput: func(ctx context.Context, _ *callbacks.RunInfo, out *schema.StreamReader[*einomodel.CallbackOutput]) context.Context {
 			defer out.Close()
 			var finish string

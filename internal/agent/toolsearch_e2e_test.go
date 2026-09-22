@@ -86,7 +86,7 @@ type echoIn struct {
 func runScripted(t *testing.T, register bool) (answer string, bound [][]string, evs []events.Event) {
 	t.Helper()
 	const target = "mcp__demo__echo"
-	reg, err := tools.NewRegistry(nil, nil)
+	reg, err := tools.NewRegistry(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func runScripted(t *testing.T, register bool) (answer string, bound [][]string, 
 	asm := newAssembler(func(e events.Event) { evs = append(evs, e) })
 	history := []*einoMessage{{Role: schema.User, Content: "use the demo tool"}}
 	agentObj := &Agent{}
-	if err := agentObj.drive(ctx, ra, history, newCallbackHandler(asm)); err != nil {
+	if err := agentObj.drive(ctx, ra, history, testCallbackHandler(asm)); err != nil {
 		t.Fatalf("drive: %v", err)
 	}
 	blocks, _ := asm.result("end_turn")

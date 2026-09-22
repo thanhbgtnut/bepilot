@@ -91,6 +91,10 @@ make run                             # server on :8080
 
 `make dev` does `up` + `migrate` + `run` in one step.
 
+`make run-web` runs the agent (`:9090`) and the `frontend/` chat widget dev
+server together (`scripts/run-web.sh`); the widget's `VITE_AGENT_URL` defaults
+to the agent's `/v1/ag-ui/run` route on `:9090`.
+
 ### Talk to it
 
 ```bash

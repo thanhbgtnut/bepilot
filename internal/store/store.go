@@ -28,6 +28,8 @@ type Store struct {
 	Skills   *SkillsRepo
 	Runs     *AgentRunsRepo
 	MCP      *MCPServersRepo
+
+	TaskResults *TaskResultsRepo
 }
 
 // Open creates the pool and, when cfg.DB.AutoMigrate is set, runs migrations.
@@ -68,6 +70,8 @@ func Open(ctx context.Context, cfg config.DB) (*Store, error) {
 		Skills:   &SkillsRepo{pool},
 		Runs:     &AgentRunsRepo{pool},
 		MCP:      &MCPServersRepo{pool},
+
+		TaskResults: &TaskResultsRepo{pool},
 	}, nil
 }
 

@@ -63,6 +63,7 @@ func New(cfg appcfg.HTTP, h *api.Handlers, log *slog.Logger) *server.Hertz {
 		v1.GET("/sessions", h.ListSessions)
 		v1.GET("/sessions/:id", h.GetSession)
 		v1.GET("/sessions/:id/messages", h.ListSessionMessages)
+		v1.GET("/sessions/:id/report", h.GetSessionReport)
 		v1.PATCH("/sessions/:id", h.UpdateSession)
 		v1.DELETE("/sessions/:id", h.DeleteSession)
 

@@ -46,6 +46,32 @@ type SessionDetail struct {
 	Messages []TranscriptMessage `json:"messages"`
 }
 
+// TaskResultDTO is one saved task result (see domain.TaskResult).
+type TaskResultDTO struct {
+	TaskKey   string         `json:"task_key"`
+	Title     string         `json:"title"`
+	Result    map[string]any `json:"result"`
+	UpdatedAt time.Time      `json:"updated_at"`
+}
+
+// SessionReport is the response of GET /v1/sessions/{id}/report: a session's
+// saved task results. It is read straight from Postgres (see
+// Handlers.GetSessionReport) — building it never touches internal/agent — so
+// it keeps serving already-saved results even while an agent run is failing.
+type SessionReport struct {
+	SessionBrief
+	Tasks []TaskResultDTO `json:"tasks"`
+}
+
+// TaskResultsFromDomain maps stored task results to their DTO.
+func TaskResultsFromDomain(in []domain.TaskResult) []TaskResultDTO {
+	out := make([]TaskResultDTO, 0, len(in))
+	for _, t := range in {
+		out = append(out, TaskResultDTO{TaskKey: t.TaskKey, Title: t.Title, Result: t.Result, UpdatedAt: t.UpdatedAt})
+	}
+	return out
+}
+
 // TranscriptMessage is one message in Anthropic content-array shape.
 type TranscriptMessage struct {
 	ID         string        `json:"id"`

@@ -1,0 +1,175 @@
+@import url("https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+:host,
+:root {
+  --color-bg: #f5f7f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #edf1ee;
+  --color-border: #d7ddd8;
+  --color-border-strong: #c2cbc4;
+  --color-text: #16211c;
+  --color-text-muted: #59665f;
+  --color-accent: #0e6e56;
+  --color-accent-ink: #0a4f3e;
+  --color-accent-soft: #deede6;
+  --color-gold: #9a7128;
+  --color-gold-soft: #f0e6d0;
+  --color-good: #1f7a4d;
+  --color-warn: #93610f;
+  --color-crit: #b23f35;
+  --color-good-soft: #dcede2;
+  --color-warn-soft: #f3e7cf;
+  --color-crit-soft: #f2dedb;
+  --shadow-lg: 0 2px 8px rgba(22, 33, 28, 0.08), 0 28px 60px -20px rgba(22, 33, 28, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+  :host:not([data-theme="light"]),
+  :root:not([data-theme="light"]) {
+    --color-bg: #0e1613;
+    --color-surface: #14201c;
+    --color-surface-2: #1c2a25;
+    --color-border: #2a3a34;
+    --color-border-strong: #3a4d45;
+    --color-text: #e7ece8;
+    --color-text-muted: #98a69e;
+    --color-accent: #3dbf9b;
+    --color-accent-ink: #7fd9c2;
+    --color-accent-soft: #123329;
+    --color-gold: #cba35e;
+    --color-gold-soft: #2e2716;
+    --color-good: #46c07e;
+    --color-warn: #d69a3e;
+    --color-crit: #e0685c;
+    --color-good-soft: #14301f;
+    --color-warn-soft: #322611;
+    --color-crit-soft: #34211e;
+    --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4), 0 32px 70px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+
+:host[data-theme="dark"],
+:root[data-theme="dark"] {
+  --color-bg: #0e1613;
+  --color-surface: #14201c;
+  --color-surface-2: #1c2a25;
+  --color-border: #2a3a34;
+  --color-border-strong: #3a4d45;
+  --color-text: #e7ece8;
+  --color-text-muted: #98a69e;
+  --color-accent: #3dbf9b;
+  --color-accent-ink: #7fd9c2;
+  --color-accent-soft: #123329;
+  --color-gold: #cba35e;
+  --color-gold-soft: #2e2716;
+  --color-good: #46c07e;
+  --color-warn: #d69a3e;
+  --color-crit: #e0685c;
+  --color-good-soft: #14301f;
+  --color-warn-soft: #322611;
+  --color-crit-soft: #34211e;
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4), 0 32px 70px -20px rgba(0, 0, 0, 0.7);
+}
+
+@theme inline {
+  --font-serif: "Spectral", Georgia, serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-accent: var(--color-accent);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-gold: var(--color-gold);
+  --color-gold-soft: var(--color-gold-soft);
+  --color-good: var(--color-good);
+  --color-warn: var(--color-warn);
+  --color-crit: var(--color-crit);
+  --color-good-soft: var(--color-good-soft);
+  --color-warn-soft: var(--color-warn-soft);
+  --color-crit-soft: var(--color-crit-soft);
+
+  --shadow-lg: var(--shadow-lg);
+}
+
+.aaw-root {
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.aaw-root .mono {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.aaw-root h3,
+.aaw-root h4 {
+  font-family: "Spectral", Georgia, serif;
+  font-weight: 500;
+  margin: 0;
+}
+
+@keyframes aaw-blip {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-good) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.aaw-live {
+  animation: aaw-blip 2.4s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aaw-live {
+    animation: none;
+  }
+}
+
+@keyframes aaw-float-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.aaw-callout-in {
+  animation: aaw-float-in 0.28s ease both;
+}
+
+@keyframes aaw-typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+.aaw-typing-dot {
+  animation: aaw-typing-dot 1s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aaw-typing-dot {
+    animation: none;
+  }
+}

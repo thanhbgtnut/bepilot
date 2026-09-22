@@ -172,7 +172,7 @@ func (m *steerProbe) Stream(ctx context.Context, in []*schema.Message, o ...mode
 }
 
 func TestMessageSentMidTurnReachesTheModelBeforeItsNextStep(t *testing.T) {
-	reg, err := tools.NewRegistry(nil, nil)
+	reg, err := tools.NewRegistry(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestMessageSentMidTurnReachesTheModelBeforeItsNextStep(t *testing.T) {
 	var evs []events.Event
 	asm := newAssembler(func(e events.Event) { evs = append(evs, e) })
 	history := []*einoMessage{{Role: schema.User, Content: "summarise the report"}}
-	if err := (&Agent{}).drive(ctx, ra, history, newCallbackHandler(asm)); err != nil {
+	if err := (&Agent{}).drive(ctx, ra, history, testCallbackHandler(asm)); err != nil {
 		t.Fatal(err)
 	}
 

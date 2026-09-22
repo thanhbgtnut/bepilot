@@ -132,7 +132,7 @@ func TestContinuationIsBoundedAndSkipsToolCalls(t *testing.T) {
 }
 
 func TestContinuationWorksInsideTheReactLoop(t *testing.T) {
-	reg, err := tools.NewRegistry(nil, nil)
+	reg, err := tools.NewRegistry(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestContinuationWorksInsideTheReactLoop(t *testing.T) {
 		t.Fatal(err)
 	}
 	asm := newAssembler(nil)
-	if err := (&Agent{}).drive(ctx, ra, []*einoMessage{{Role: schema.User, Content: "write"}}, newCallbackHandler(asm)); err != nil {
+	if err := (&Agent{}).drive(ctx, ra, []*einoMessage{{Role: schema.User, Content: "write"}}, testCallbackHandler(asm)); err != nil {
 		t.Fatal(err)
 	}
 	blocks, _ := asm.result("end_turn")

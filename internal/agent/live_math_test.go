@@ -121,7 +121,7 @@ func TestLiveMathAndJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reg, err := tools.NewRegistry(nil, nil)
+	reg, err := tools.NewRegistry(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestLiveMathAndJSON(t *testing.T) {
 	var evs []events.Event
 	asm := newAssembler(func(e events.Event) { evs = append(evs, e) })
 	history := []*einoMessage{{Role: schema.User, Content: liveStatementRequest}}
-	if err := (&Agent{}).drive(ctx, ra, history, newCallbackHandler(asm)); err != nil {
+	if err := (&Agent{}).drive(ctx, ra, history, testCallbackHandler(asm)); err != nil {
 		t.Fatalf("drive: %v", err)
 	}
 

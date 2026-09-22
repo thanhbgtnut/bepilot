@@ -154,6 +154,38 @@ func (h *Handlers) ListSessionMessages(ctx context.Context, c *app.RequestContex
 	c.JSON(consts.StatusOK, dto.MessageListResponse{Data: dto.TranscriptFromMessages(msgs)})
 }
 
+// GetSessionReport handles GET /v1/sessions/{id}/report — the structured task
+// results saved for a session (e.g. a skill's checklist review and
+// information extraction). Deliberately independent of the agent: it reads
+// h.Store directly and never calls h.Agent, so the report view keeps working
+// even while an agent run is broken or unavailable.
+//
+// @Summary   Get a session's saved task results
+// @Tags      Sessions
+// @Produce   json
+// @Param     id   path      string  true  "Session id"  format(uuid)
+// @Success   200  {object}  dto.SessionReport
+// @Failure   401  {object}  dto.ErrorResponse
+// @Failure   403  {object}  dto.ErrorResponse
+// @Failure   404  {object}  dto.ErrorResponse
+// @Security  ApiKeyAuth
+// @Router    /v1/sessions/{id}/report [get]
+func (h *Handlers) GetSessionReport(ctx context.Context, c *app.RequestContext) {
+	sess, ok := h.ownedSession(ctx, c)
+	if !ok {
+		return
+	}
+	results, err := h.Store.TaskResults.ListBySession(ctx, sess.ID)
+	if err != nil {
+		h.serverError(c, err)
+		return
+	}
+	c.JSON(consts.StatusOK, dto.SessionReport{
+		SessionBrief: dto.BriefFromDomain(sess),
+		Tasks:        dto.TaskResultsFromDomain(results),
+	})
+}
+
 // UpdateSession handles PATCH /v1/sessions/{id}.
 //
 // @Summary   Update a session's title or metadata

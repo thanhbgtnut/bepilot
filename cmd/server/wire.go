@@ -11,8 +11,8 @@ import (
 	"github.com/thanhenti/bepilot/internal/tools"
 )
 
-func buildToolRegistry(skillSvc *skills.Service, cfg *config.Config) (*tools.Registry, error) {
-	return tools.NewRegistry(skillSvc, cfg.Tools.HTTPAllowlist)
+func buildToolRegistry(skillSvc *skills.Service, cfg *config.Config, st *store.Store) (*tools.Registry, error) {
+	return tools.NewRegistry(skillSvc, cfg.Tools.HTTPAllowlist, st.TaskResults)
 }
 
 // bootstrapMCP attaches every MCP server known at startup: first the ones

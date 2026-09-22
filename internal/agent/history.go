@@ -12,6 +12,23 @@ import (
 // trimming, never for billing.
 func approxTokens(s string) int { return (len(s) + 3) / 4 }
 
+// approxMessagesTokens sums approxTokens over a transcript, including tool
+// call arguments and tool results, so it reflects what actually grows a
+// turn's payload as a ReAct loop batches tool calls back and forth.
+func approxMessagesTokens(msgs []*schema.Message) int {
+	total := 0
+	for _, m := range msgs {
+		if m == nil {
+			continue
+		}
+		total += approxTokens(m.Content)
+		for _, tc := range m.ToolCalls {
+			total += approxTokens(tc.Function.Arguments)
+		}
+	}
+	return total
+}
+
 // historyToMessages converts stored messages into eino messages. An assistant
 // message that carried tool_use / tool_result blocks is expanded into an
 // assistant message with ToolCalls followed by one tool message per result, so

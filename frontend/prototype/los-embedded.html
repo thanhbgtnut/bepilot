@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hồ sơ tín dụng LOS-2026-04871</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --bg: #F5F7F5;
+    --surface: #FFFFFF;
+    --surface-2: #EDF1EE;
+    --border: #D7DDD8;
+    --border-strong: #C2CBC4;
+    --text: #16211C;
+    --text-muted: #59665F;
+    --accent: #0E6E56;
+    --accent-ink: #0A4F3E;
+    --accent-soft: #DEEDE6;
+    --gold: #9A7128;
+    --gold-soft: #F0E6D0;
+    --good: #1F7A4D;
+    --warn: #93610F;
+    --crit: #B23F35;
+    --good-soft: #DCEDE2;
+    --warn-soft: #F3E7CF;
+    --crit-soft: #F2DEDB;
+    --shadow-sm: 0 1px 2px rgba(22, 33, 28, .05);
+    --shadow: 0 1px 2px rgba(22, 33, 28, .04), 0 8px 24px -12px rgba(22, 33, 28, .12);
+    --shadow-lg: 0 2px 8px rgba(22, 33, 28, .08), 0 28px 60px -20px rgba(22, 33, 28, .28);
+    --radius: 10px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1613;
+      --surface: #14201C;
+      --surface-2: #1C2A25;
+      --border: #2A3A34;
+      --border-strong: #3A4D45;
+      --text: #E7ECE8;
+      --text-muted: #98A69E;
+      --accent: #3DBF9B;
+      --accent-ink: #7FD9C2;
+      --accent-soft: #123329;
+      --gold: #CBA35E;
+      --gold-soft: #2E2716;
+      --good: #46C07E;
+      --warn: #D69A3E;
+      --crit: #E0685C;
+      --good-soft: #14301F;
+      --warn-soft: #322611;
+      --crit-soft: #34211E;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.55);
+      --shadow-lg: 0 2px 8px rgba(0,0,0,.4), 0 32px 70px -20px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0E1613;
+    --surface: #14201C;
+    --surface-2: #1C2A25;
+    --border: #2A3A34;
+    --border-strong: #3A4D45;
+    --text: #E7ECE8;
+    --text-muted: #98A69E;
+    --accent: #3DBF9B;
+    --accent-ink: #7FD9C2;
+    --accent-soft: #123329;
+    --gold: #CBA35E;
+    --gold-soft: #2E2716;
+    --good: #46C07E;
+    --warn: #D69A3E;
+    --crit: #E0685C;
+    --good-soft: #14301F;
+    --warn-soft: #322611;
+    --crit-soft: #34211E;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.55);
+    --shadow-lg: 0 2px 8px rgba(0,0,0,.4), 0 32px 70px -20px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14.5px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 { font-family: "Spectral", Georgia, serif; font-weight: 500; text-wrap: balance; margin: 0; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent-ink); }
+
+  .eyebrow {
+    font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--text-muted); font-weight: 600; font-family: "IBM Plex Sans", sans-serif;
+  }
+
+  /* ---------------- Top bar ---------------- */
+  .topbar {
+    display: flex; align-items: center; gap: 18px;
+    padding: 10px 22px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; flex: none; }
+  .logo .mark {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-ink));
+    display: grid; place-items: center; color: #fff;
+    font-family: "Spectral", serif; font-size: 17px; font-weight: 600;
+  }
+  .logo b { font-size: 13px; font-weight: 600; }
+  .logo span { font-size: 11px; color: var(--text-muted); display: block; }
+
+  .crumbs { font-size: 12px; color: var(--text-muted); display: flex; gap: 7px; align-items: center; }
+  .crumbs .cur { color: var(--text); font-weight: 600; }
+  .crumbs svg { opacity: .5; }
+
+  .topbar .spacer { margin-left: auto; }
+  .topbar .icon-btn {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); display: grid; place-items: center; cursor: pointer;
+  }
+  .user { display: flex; align-items: center; gap: 9px; padding-left: 4px; }
+  .user .ava { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border);
+    display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+  .user .who b { font-size: 12.5px; display: block; font-weight: 600; }
+  .user .who span { font-size: 11px; color: var(--text-muted); }
+
+  /* ---------------- Application header ---------------- */
+  .apphead {
+    padding: 18px 26px 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .apphead-row { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
+  .apphead .block { display: flex; flex-direction: column; gap: 2px; }
+  .apphead h1 { font-size: 21px; font-weight: 600; }
+  .apphead .meta { font-size: 12px; color: var(--text-muted); }
+  .apphead .amt { font-family: "Spectral", serif; font-size: 19px; font-weight: 600; }
+
+  .pill {
+    align-self: center;
+    font-size: 11.5px; font-weight: 600; padding: 4px 11px; border-radius: 999px;
+    background: var(--warn-soft); color: var(--warn); white-space: nowrap;
+  }
+  .sla { font-size: 12px; color: var(--text-muted); }
+  .sla b { color: var(--crit); font-family: "IBM Plex Mono", monospace; }
+
+  .stepper { display: flex; gap: 0; margin: 20px 0 -1px; flex-wrap: wrap; }
+  .step {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 18px; font-size: 12.5px; color: var(--text-muted);
+    border-bottom: 2px solid transparent; position: relative;
+  }
+  .step .num {
+    width: 20px; height: 20px; border-radius: 50%; flex: none;
+    border: 1.5px solid var(--border-strong); display: grid; place-items: center;
+    font-size: 10px; font-family: "IBM Plex Mono", monospace;
+  }
+  .step.done .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step.active { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+  .step.active .num { border-color: var(--accent); color: var(--accent); }
+  .step .ai-tag {
+    font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 5px;
+    background: var(--accent-soft); color: var(--accent-ink);
+    font-family: "IBM Plex Mono", monospace;
+  }
+
+  /* ---------------- Body layout ---------------- */
+  .page {
+    max-width: 1180px; margin: 0 auto; padding: 24px 26px 90px;
+    display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 22px; align-items: start;
+  }
+  @media (max-width: 940px) { .page { grid-template-columns: 1fr; } }
+
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .card > .card-h {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; border-bottom: 1px solid var(--border);
+  }
+  .card-h h3 { font-size: 15px; }
+  .card-h .link { font-size: 12px; font-weight: 600; }
+  .card-c { padding: 14px 16px; }
+
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; }
+  .fields .f span { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 1px; }
+  .fields .f b { font-weight: 600; font-size: 13.5px; }
+
+  .prose { font-size: 13.5px; }
+  .prose p { margin: 0 0 8px; }
+  .prose p:last-child { margin-bottom: 0; }
+
+  /* collateral / doc list */
+  .rows { display: flex; flex-direction: column; }
+  .rows .r {
+    display: grid; grid-template-columns: 18px 1fr auto; gap: 11px; align-items: center;
+    padding: 9px 0; font-size: 13px;
+  }
+  .rows .r:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .rows .r .st { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 9px; }
+  .st.ok { background: var(--good-soft); color: var(--good); }
+  .st.miss { background: var(--warn-soft); color: var(--warn); }
+  .rows .r .sub { font-size: 11px; color: var(--text-muted); }
+  .rows .r .tag { font-size: 11px; color: var(--text-muted); font-family: "IBM Plex Mono", monospace; }
+
+  .doc-summary { font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+  .doc-summary b { color: var(--text); font-family: "IBM Plex Mono", monospace; }
+
+  /* inline agent banner */
+  .agent-banner {
+    display: flex; align-items: center; gap: 13px;
+    padding: 13px 15px;
+    background: linear-gradient(100deg, var(--accent-soft), transparent 80%);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+  }
+  .agent-banner .ava {
+    width: 34px; height: 34px; flex: none; border-radius: 9px;
+    background: var(--surface); border: 1px solid var(--accent);
+    display: grid; place-items: center; color: var(--accent-ink);
+    font-family: "Spectral", serif; font-weight: 600; font-size: 14px;
+  }
+  .agent-banner .txt { flex: 1; min-width: 0; }
+  .agent-banner .txt b { font-size: 13.5px; }
+  .agent-banner .txt span { display: block; font-size: 12px; color: var(--text-muted); }
+  .agent-banner button {
+    font: inherit; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+    padding: 7px 13px; border-radius: 7px; cursor: pointer;
+    background: var(--accent); border: 1px solid var(--accent); color: #fff;
+  }
+
+  /* right column small cards */
+  .mini { font-size: 13px; }
+  .mini .l { display: flex; justify-content: space-between; padding: 6px 0; }
+  .mini .l:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .mini .l span { color: var(--text-muted); }
+  .mini .l b { font-weight: 600; }
+
+  .feed .fi { display: grid; grid-template-columns: 12px 1fr; gap: 9px; padding: 8px 0; font-size: 12.5px; }
+  .feed .fi:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .feed .fi .d { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; background: var(--accent); }
+  .feed .fi .d.ai { background: var(--gold); }
+  .feed .fi .t { color: var(--text-muted); font-size: 10.5px; font-family: "IBM Plex Mono", monospace; }
+
+  /* assignee avatars */
+  .assignees { display: flex; align-items: center; }
+  .assignees .a {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface);
+    background: var(--surface-2); display: grid; place-items: center; font-size: 10px; font-weight: 600;
+    margin-left: -7px;
+  }
+  .assignees .a:first-child { margin-left: 0; }
+  .assignees .a.ai { background: var(--gold-soft); color: var(--gold); border-color: var(--surface); }
+
+  /* ================= Agent dock ================= */
+  .fab {
+    position: fixed; right: 22px; bottom: 22px; z-index: 40;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 15px 9px 9px; border-radius: 999px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    box-shadow: var(--shadow-lg); color: var(--text); font: inherit;
+  }
+  .fab .fab-ava {
+    width: 34px; height: 34px; border-radius: 50%; position: relative; flex: none;
+    background: linear-gradient(150deg, var(--accent), var(--accent-ink));
+    display: grid; place-items: center; color: #fff; font-family: "Spectral", serif; font-weight: 600; font-size: 14px;
+  }
+  .fab .fab-ava .cnt {
+    position: absolute; top: -3px; right: -3px;
+    min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+    background: var(--crit); color: #fff; font-size: 10px; font-weight: 700;
+    display: grid; place-items: center; border: 2px solid var(--surface);
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+  .fab .fab-txt b { font-size: 12.5px; display: block; }
+  .fab .fab-txt span { font-size: 10.5px; color: var(--text-muted); }
+  .fab[hidden] { display: none; }
+
+  .callout {
+    position: fixed; right: 22px; bottom: 78px; z-index: 41;
+    width: 300px; padding: 14px 15px 13px;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: 12px; box-shadow: var(--shadow-lg);
+    transform-origin: bottom right;
+  }
+  .callout::after {
+    content: ""; position: absolute; right: 26px; bottom: -7px;
+    width: 12px; height: 12px; background: var(--surface);
+    border-right: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong);
+    transform: rotate(45deg);
+  }
+  .callout .c-top { display: flex; gap: 9px; align-items: center; margin-bottom: 7px; }
+  .callout .c-top .ava { width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(150deg, var(--accent), var(--accent-ink)); color: #fff;
+    display: grid; place-items: center; font-family: "Spectral", serif; font-weight: 600; font-size: 12px; }
+  .callout .c-top b { font-size: 12.5px; }
+  .callout p { margin: 0 0 11px; font-size: 12.5px; }
+  .callout .c-act { display: flex; gap: 8px; }
+  .callout button {
+    font: inherit; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 7px; cursor: pointer;
+  }
+  .callout .go { background: var(--accent); border: 1px solid var(--accent); color: #fff; }
+  .callout .later { background: none; border: 1px solid var(--border-strong); color: var(--text-muted); }
+  .callout[hidden] { display: none; }
+
+  .scrim {
+    position: fixed; inset: 0; z-index: 45; background: rgba(10, 20, 16, .35);
+    opacity: 0; pointer-events: none; transition: opacity .2s ease;
+  }
+  .scrim.show { opacity: 1; pointer-events: auto; }
+  @media (min-width: 761px) { .scrim { display: none; } }
+
+  .panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 46;
+    width: 660px; max-width: 96vw;
+    background: var(--surface); border-left: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column;
+    transform: translateX(100%); transition: transform .32s cubic-bezier(.22,.61,.36,1);
+  }
+  .panel.open { transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .panel { transition: none; }
+    .callout { animation: none !important; }
+  }
+
+  .panel-h {
+    padding: 15px 16px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 11px; align-items: flex-start;
+  }
+  .panel-h .ava {
+    width: 38px; height: 38px; flex: none; border-radius: 10px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-ink)); color: #fff;
+    display: grid; place-items: center; font-family: "Spectral", serif; font-weight: 600; font-size: 16px;
+  }
+  .panel-h .id { flex: 1; min-width: 0; }
+  .panel-h .id b { font-size: 14px; display: flex; align-items: center; gap: 7px; }
+  .panel-h .id .role { font-size: 11.5px; color: var(--text-muted); }
+  .panel-h .x {
+    width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); cursor: pointer; flex: none;
+    display: grid; place-items: center; font-size: 15px;
+  }
+  .live { width: 7px; height: 7px; border-radius: 50%; background: var(--good);
+    animation: blip 2.4s infinite; }
+  @keyframes blip { 0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent);} 70%{box-shadow:0 0 0 6px transparent;} 100%{box-shadow:0 0 0 0 transparent;} }
+  @media (prefers-reduced-motion: reduce) { .live { animation: none; } }
+
+  .panel-b { overflow-y: auto; padding: 15px 16px 20px; flex: 1; }
+  .panel-b .intro { font-size: 13px; margin: 0 0 14px; }
+  .panel-b .intro .mono { color: var(--text); }
+
+  .pstats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+  .pstat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+  .pstat b { font-family: "Spectral", serif; font-size: 18px; font-weight: 600; display: block; line-height: 1.15; }
+  .pstat span { font-size: 10.5px; color: var(--text-muted); }
+  .pstat.warn b { color: var(--warn); }
+
+  .pgroup-h {
+    font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted);
+    font-family: "IBM Plex Sans", sans-serif; font-weight: 600; margin: 0 0 8px;
+  }
+
+  .need { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .need .n {
+    display: grid; grid-template-columns: 14px 1fr; gap: 9px;
+    padding: 10px 11px; border-radius: 8px; font-size: 12.5px;
+    background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  }
+  .need .n.hi { background: var(--crit-soft); border-color: color-mix(in srgb, var(--crit) 35%, transparent); }
+  .need .n .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; background: var(--warn); }
+  .need .n.hi .dot { background: var(--crit); }
+  .need .n b { font-weight: 600; }
+
+  .tasklist { display: flex; flex-direction: column; margin-bottom: 20px; }
+  .tasklist .tl {
+    display: grid; grid-template-columns: 16px 1fr auto; gap: 10px; align-items: center;
+    padding: 8px 0; font-size: 12.5px;
+  }
+  .tasklist .tl:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .tasklist .tl .c { width: 15px; height: 15px; border-radius: 50%; background: var(--good-soft); color: var(--good);
+    display: grid; place-items: center; font-size: 9px; }
+  .tasklist .tl .c.wait { background: var(--surface-2); color: var(--text-muted); }
+  .tasklist .tl .pc { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--text-muted); }
+
+  .panel-f { border-top: 1px solid var(--border); padding: 13px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .panel-f .row { display: flex; gap: 8px; }
+  .panel-f a.btn, .panel-f button.btn {
+    flex: 1; text-align: center; text-decoration: none;
+    font: inherit; font-size: 12.5px; font-weight: 600; padding: 9px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  }
+  .panel-f a.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .panel-f .fine { font-size: 10.5px; color: var(--text-muted); text-align: center; margin-top: 2px; }
+
+  .fab:focus-visible, .callout button:focus-visible, .panel button:focus-visible,
+  .panel a:focus-visible, .icon-btn:focus-visible, .agent-banner button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  @keyframes floatIn { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
+  .callout:not([hidden]) { animation: floatIn .28s ease both; }
+
+  @media (max-width: 420px) {
+    .fab .fab-txt { display: none; }
+    .callout { right: 12px; width: calc(100vw - 24px); }
+    .fab { right: 14px; bottom: 14px; }
+  }
+
+  /* panel tabs + embedded report */
+  .panel-tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .panel-tabs button {
+    font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    padding: 10px 12px; background: none; border: none; color: var(--text-muted);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .panel-tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .panel-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .tabpane { flex: 1; min-height: 0; display: none; flex-direction: column; }
+  .tabpane.active { display: flex; }
+
+  .report-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+  .report-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 8px 14px; font-size: 11.5px; color: var(--text-muted);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .report-bar a { font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+  .report-wrap iframe {
+    flex: 1; width: 100%; border: 0; background: var(--bg);
+  }
+
+  /* ================= Chat with the assistant ================= */
+  .chat-thread {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 16px; background: var(--bg);
+    display: flex; flex-direction: column; gap: 13px;
+  }
+  .day-div {
+    text-align: center; font-size: 10px; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--text-muted); font-family: "IBM Plex Mono", monospace; margin: 2px 0 4px;
+  }
+
+  .msg { display: grid; grid-template-columns: 27px minmax(0, 1fr); gap: 9px; max-width: 90%; }
+  .msg .m-ava {
+    width: 27px; height: 27px; flex: none; border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: "Spectral", serif; font-weight: 600; font-size: 11px;
+  }
+  .msg.ai .m-ava { background: linear-gradient(150deg, var(--accent), var(--accent-ink)); color: #fff; }
+  .msg.me { margin-left: auto; grid-template-columns: minmax(0, 1fr) 27px; }
+  .msg.me .m-ava { order: 2; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+
+  .bubble {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 9px 12px; font-size: 13px;
+  }
+  .msg.ai .bubble { border-top-left-radius: 4px; }
+  .msg.me .bubble {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    border-top-right-radius: 4px;
+  }
+  .bubble p { margin: 0 0 6px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble ul { margin: 4px 0; padding-left: 17px; }
+  .bubble li { margin: 3px 0; }
+  .m-time { font-size: 9.5px; color: var(--text-muted); font-family: "IBM Plex Mono", monospace; margin-top: 5px; }
+  .msg.me .m-time { text-align: right; }
+
+  .acard {
+    margin-top: 9px; border: 1px solid var(--border); border-radius: 9px;
+    overflow: hidden; background: var(--surface);
+  }
+  .acard .ac-h {
+    padding: 7px 11px; background: var(--surface-2); border-bottom: 1px solid var(--border);
+    font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .acard .ac-b { padding: 10px 11px; font-size: 12.5px; }
+  .acard .ac-b ul { margin: 0; padding-left: 16px; }
+  .ac-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .ac-kv div { font-size: 12px; }
+  .ac-kv span { display: block; font-size: 10px; color: var(--text-muted); }
+  .ac-kv b { font-family: "IBM Plex Mono", monospace; font-weight: 500; }
+  .ac-act {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 9px 11px; border-top: 1px solid var(--border); background: var(--surface);
+  }
+  .cta {
+    font: inherit; font-size: 12px; font-weight: 600;
+    padding: 6px 11px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  }
+  .cta.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .tform { display: flex; flex-direction: column; gap: 9px; }
+  .tform label { font-size: 10.5px; color: var(--text-muted); display: block; margin-bottom: 3px; }
+  .tform select, .tform input {
+    width: 100%; font: inherit; font-size: 12.5px; padding: 6px 8px;
+    border: 1px solid var(--border-strong); border-radius: 7px;
+    background: var(--surface); color: var(--text);
+  }
+  .tform select:focus-visible, .tform input:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+
+  .typing { display: flex; gap: 3px; padding: 3px 2px; }
+  .typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted); animation: td 1s infinite; }
+  .typing i:nth-child(2) { animation-delay: .15s; }
+  .typing i:nth-child(3) { animation-delay: .3s; }
+  @keyframes td { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+  @media (prefers-reduced-motion: reduce) { .typing i { animation: none; } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px 0; background: var(--surface); }
+  .chip {
+    font: inherit; font-size: 11.5px; font-weight: 500;
+    padding: 5px 10px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  }
+  .chip:hover { background: var(--surface-2); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .composer { border-top: 1px solid var(--border); padding: 10px 12px 11px; background: var(--surface); }
+  .composer .field { display: flex; gap: 8px; align-items: flex-end; }
+  .composer textarea {
+    flex: 1; resize: none; font: inherit; font-size: 13px; line-height: 1.4;
+    padding: 8px 10px; max-height: 96px; overflow-y: auto;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    background: var(--surface); color: var(--text);
+  }
+  .composer textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+  .composer .send {
+    flex: none; width: 36px; height: 36px; border-radius: 9px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+    cursor: pointer; display: grid; place-items: center;
+  }
+  .composer .send:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .composer .hint2 { font-size: 10px; color: var(--text-muted); margin-top: 7px; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">
+    <div class="mark">đ</div>
+    <div><b>LOS</b><span>Khởi tạo khoản vay · KHDN</span></div>
+  </div>
+  <nav class="crumbs">
+    <span>Hồ sơ tín dụng</span>
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 3l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <span class="cur mono">LOS-2026-04871</span>
+  </nav>
+  <div class="spacer"></div>
+  <button class="icon-btn" aria-label="Thông báo">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a4 4 0 0 0-4 4v2.5L2.5 11h11L12 8.5V6a4 4 0 0 0-4-4Z" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 13a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.3"/></svg>
+  </button>
+  <div class="user">
+    <div class="ava">NM</div>
+    <div class="who"><b>Nguyễn Minh</b><span>Chuyên viên QHKH · Chi nhánh Đông Sài Gòn</span></div>
+  </div>
+</header>
+
+<div class="apphead">
+  <div class="apphead-row">
+    <div class="block">
+      <span class="eyebrow">Bên vay</span>
+      <h1>Công ty CP Thực phẩm Đồng Xanh</h1>
+      <span class="meta">MST <span class="mono">0312xxxxxx</span> · Chế biến nông sản · Hồ sơ <span class="mono">LOS-2026-04871</span></span>
+    </div>
+    <div class="block">
+      <span class="eyebrow">Đề nghị</span>
+      <span class="amt mono">25,0 tỷ VND</span>
+      <span class="meta">Hạn mức vốn lưu động · 12 tháng</span>
+    </div>
+    <div class="block">
+      <span class="eyebrow">Xử lý</span>
+      <div class="assignees" title="Nguyễn Minh, Trợ lý Thẩm định, Lê Hà">
+        <div class="a">NM</div><div class="a ai">TĐ</div><div class="a">LH</div>
+      </div>
+      <span class="sla">Hạn thẩm định: <b>còn 2n 4g</b></span>
+    </div>
+    <span class="pill">Đang thẩm định</span>
+  </div>
+
+  <nav class="stepper" aria-label="Các bước hồ sơ">
+    <div class="step done"><span class="num">✓</span> Tiếp nhận</div>
+    <div class="step active"><span class="num">2</span> Thẩm định <span class="ai-tag">AI 82%</span></div>
+    <div class="step"><span class="num">3</span> Phê duyệt</div>
+    <div class="step"><span class="num">4</span> Giải ngân</div>
+  </nav>
+</div>
+
+<main class="page">
+  <div class="col">
+
+    <div class="agent-banner" role="region" aria-label="Trợ lý Thẩm định">
+      <div class="ava">TĐ</div>
+      <div class="txt">
+        <b>Trợ lý Thẩm định đã xử lý sơ bộ hồ sơ này</b>
+        <span>8/9 đầu việc hoàn tất · 3 nội dung cần bạn xác nhận · tờ trình nháp đã sẵn sàng</span>
+      </div>
+      <button type="button" data-open-agent>Xem kết quả</button>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Thông tin doanh nghiệp</h3><a class="link" href="#">Chỉnh sửa</a></div>
+      <div class="card-c">
+        <div class="fields">
+          <div class="f"><span>Loại hình</span><b>Công ty cổ phần</b></div>
+          <div class="f"><span>Năm thành lập</span><b>2015</b></div>
+          <div class="f"><span>Vốn điều lệ</span><b class="mono">50,0 tỷ</b></div>
+          <div class="f"><span>Người đại diện</span><b>Trần Quốc Bảo — TGĐ</b></div>
+          <div class="f"><span>Số lao động</span><b>~ 240</b></div>
+          <div class="f"><span>Ngành nghề chính</span><b>Chế biến, bảo quản rau quả</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Phương án sử dụng vốn</h3><a class="link" href="#">Xem đầy đủ</a></div>
+      <div class="card-c prose">
+        <p><b>Mục đích:</b> Bổ sung vốn lưu động thu mua nguyên liệu nông sản phục vụ đơn hàng xuất khẩu quý IV và quý I năm sau.</p>
+        <p><b>Nguồn trả nợ:</b> Dòng tiền từ hợp đồng đầu ra với 3 đối tác Đông Á, chu kỳ thu tiền bình quân 58 ngày.</p>
+        <p><b>Vòng quay vốn đề xuất:</b> 3,5 vòng/năm — phù hợp với đặc thù mùa vụ của ngành.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Tài sản bảo đảm</h3><span class="tag mono" style="font-size:11px;color:var(--text-muted)">Định giá: đang xử lý</span></div>
+      <div class="card-c">
+        <div class="rows">
+          <div class="r">
+            <span class="st ok">✓</span>
+            <div><div>QSD đất &amp; nhà xưởng — KCN Tân Phú</div><div class="sub">GCN số CV 8842xx · 4.200 m²</div></div>
+            <span class="tag">~31 tỷ (ước)</span>
+          </div>
+          <div class="r">
+            <span class="st ok">✓</span>
+            <div><div>Hàng tồn kho luân chuyển</div><div class="sub">Nhận thế chấp 70% giá trị kiểm kê</div></div>
+            <span class="tag">~9 tỷ (ước)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Hồ sơ tài liệu</h3><a class="link" href="#">Tải lên</a></div>
+      <div class="card-c">
+        <div class="rows">
+          <div class="r"><span class="st ok">✓</span><div>BCTC kiểm toán 2023–2024</div><span class="tag">Đã nhận</span></div>
+          <div class="r"><span class="st miss">!</span><div>BCTC 2025 <span class="sub">(bản nội bộ, chưa kiểm toán)</span></div><span class="tag">Cần bổ sung</span></div>
+          <div class="r"><span class="st ok">✓</span><div>Giấy chứng nhận ĐKDN</div><span class="tag">Đã nhận</span></div>
+          <div class="r"><span class="st ok">✓</span><div>Điều lệ công ty</div><span class="tag">Đã nhận</span></div>
+          <div class="r"><span class="st miss">!</span><div>Nghị quyết HĐQT duyệt phương án vay 25 tỷ</div><span class="tag">Thiếu / chưa khớp</span></div>
+          <div class="r"><span class="st ok">✓</span><div>Hợp đồng đầu ra &amp; đơn hàng</div><span class="tag">Đã nhận</span></div>
+          <div class="r"><span class="st ok">✓</span><div>Giấy tờ tài sản bảo đảm</div><span class="tag">Đã nhận</span></div>
+        </div>
+        <div class="doc-summary">Đầy đủ <b>7/9</b> · 2 tài liệu đang chờ bên vay bổ sung (hạn 29/08/2026)</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <div class="card-h"><h3>Phân công &amp; tiến độ</h3></div>
+      <div class="card-c mini">
+        <div class="l"><span>Chuyên viên QHKH</span><b>Nguyễn Minh</b></div>
+        <div class="l"><span>Chuyên viên thẩm định</span><b>Lê Hà</b></div>
+        <div class="l"><span>Trợ lý AI</span><b>Đã bàn giao</b></div>
+        <div class="l"><span>Ngày tiếp nhận</span><b class="mono">26/08/2026</b></div>
+        <div class="l"><span>Hạn thẩm định</span><b class="mono">30/08/2026</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Hoạt động gần đây</h3></div>
+      <div class="card-c feed">
+        <div class="fi"><span class="d ai"></span><div>Trợ lý Thẩm định gắn tờ trình nháp vào hồ sơ <div class="t">10:42 hôm nay</div></div></div>
+        <div class="fi"><span class="d ai"></span><div>Trợ lý tạo 2 yêu cầu bổ sung tài liệu gửi QHKH <div class="t">10:05</div></div></div>
+        <div class="fi"><span class="d"></span><div>Nguyễn Minh chuyển hồ sơ sang bước Thẩm định <div class="t">08:12</div></div></div>
+        <div class="fi"><span class="d"></span><div>Hồ sơ được tiếp nhận từ kênh chi nhánh <div class="t">26/08</div></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ============ Agent dock ============ -->
+<div class="scrim" data-close-agent></div>
+
+<button class="fab" type="button" data-open-agent aria-haspopup="dialog">
+  <span class="fab-ava">TĐ<span class="cnt">3</span></span>
+  <span class="fab-txt"><b>Trợ lý Thẩm định</b><span>3 việc cần bạn xác nhận</span></span>
+</button>
+
+<div class="callout" hidden>
+  <div class="c-top">
+    <div class="ava">TĐ</div>
+    <b>Trợ lý Thẩm định</b>
+  </div>
+  <p>Chào chị Hà — em đã chuẩn bị sẵn phần thẩm định sơ bộ cho hồ sơ <span class="mono">LOS-2026-04871</span>. Chị trao đổi với em nhé?</p>
+  <div class="c-act">
+    <button type="button" class="go" data-open-agent>Xem kết quả</button>
+    <button type="button" class="later" data-dismiss-callout>Để sau</button>
+  </div>
+</div>
+
+<aside class="panel" role="dialog" aria-modal="false" aria-label="Trợ lý Thẩm định Doanh nghiệp">
+  <div class="panel-h">
+    <div class="ava">TĐ</div>
+    <div class="id">
+      <b>Trợ lý Thẩm định <span class="live" title="Đang hoạt động"></span></b>
+      <div class="role">Vai trò: Chuyên viên thẩm định DN · Bậc Junior 3/5 · 1.248 hồ sơ</div>
+    </div>
+    <button class="x" type="button" data-close-agent aria-label="Đóng">✕</button>
+  </div>
+
+  <div class="panel-tabs" role="tablist">
+    <button role="tab" data-tab="chat" aria-selected="true">Trao đổi</button>
+    <button role="tab" data-tab="summary" aria-selected="false">Tóm tắt</button>
+    <button role="tab" data-tab="report" aria-selected="false">Báo cáo đầy đủ</button>
+  </div>
+
+  <div class="tabpane active" data-pane="chat">
+    <div class="chat-thread" role="log" aria-label="Trao đổi với Trợ lý Thẩm định">
+      <div class="day-div">Hôm nay · 10:44</div>
+
+      <div class="msg ai">
+        <div class="m-ava">TĐ</div>
+        <div><div class="bubble">
+          <p>Chào chị Hà, em đã thẩm định sơ bộ xong hồ sơ <span class="mono">LOS-2026-04871</span> — Công ty CP Thực phẩm Đồng Xanh, đề nghị hạn mức 25,0 tỷ.</p>
+          <p>8/9 đầu việc hoàn tất, 1 việc đang chờ bên vay bổ sung danh sách công ty liên kết. Phần cần chị quyết:</p>
+          <div class="acard">
+            <div class="ac-h">3 nội dung cần chuyên viên xác nhận</div>
+            <div class="ac-b"><ul>
+              <li><b>Thẩm quyền vay chưa đủ</b> — Nghị quyết HĐQT mới duyệt 20 tỷ / 25 tỷ đề nghị.</li>
+              <li><b>Giao dịch bên liên quan</b> — cho vay 4,2 tỷ, lãi suất 0%, công ty do em ruột TGĐ sở hữu.</li>
+              <li><b>Lệch doanh thu / dòng tiền Q4</b> — doanh thu +34% nhưng dòng tiền HĐKD âm.</li>
+            </ul></div>
+            <div class="ac-act">
+              <button class="cta primary" data-act="report">Xem báo cáo đầy đủ</button>
+              <button class="cta" data-intent="authority" data-send="Cho mình xem chi tiết mục thẩm quyền vay">Chi tiết mục thẩm quyền</button>
+            </div>
+          </div>
+          <div class="m-time">10:44</div>
+        </div></div>
+      </div>
+
+      <div class="msg ai">
+        <div class="m-ava">TĐ</div>
+        <div><div class="bubble">
+          <p>Em cũng đã soạn <b>tờ trình thẩm định bản nháp v0.3</b> theo mẫu TT-KHDN-02 (14 trang). Đề xuất của em: cấp <b>22,0 tỷ</b> kèm 4 điều kiện tiên quyết.</p>
+          <div class="acard">
+            <div class="ac-h">📄 Tờ trình thẩm định — bản nháp v0.3</div>
+            <div class="ac-b">
+              <div class="ac-kv">
+                <div><span>Hạn mức đề xuất</span><b>22,0 tỷ</b></div>
+                <div><span>Thời hạn</span><b>12 tháng</b></div>
+                <div><span>Lãi suất</span><b>Sàn + 3,2%</b></div>
+                <div><span>Điều kiện tiên quyết</span><b>4</b></div>
+              </div>
+              <p style="margin:8px 0 0;font-size:11.5px;color:var(--text-muted)">Mục 9 “Kết luận &amp; ý kiến đề xuất” và phần đánh giá định tính về quản trị điều hành đang để trống chờ chị hoàn thiện.</p>
+            </div>
+            <div class="ac-act">
+              <button class="cta primary" data-act="insert-draft">Chèn vào hồ sơ LOS</button>
+              <button class="cta" data-act="report">Mở bản đầy đủ</button>
+              <button class="cta" data-act="download">Tải .docx</button>
+            </div>
+          </div>
+          <div class="m-time">10:44</div>
+        </div></div>
+      </div>
+
+      <div class="msg ai">
+        <div class="m-ava">TĐ</div>
+        <div><div class="bubble">
+          <p>Chị cần em hỗ trợ thêm việc gì không? Em có thể chạy lại kịch bản DSCR, lập phiếu phỏng vấn khách hàng, hoặc nhận thêm đầu việc chị giao.</p>
+          <div class="m-time">10:44</div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="chips" data-chips>
+      <button class="chip" data-act="insert-draft" data-send="Chèn tờ trình nháp vào hồ sơ">Chèn tờ trình nháp</button>
+      <button class="chip" data-act="assign" data-send="Mình muốn giao thêm đầu việc">Giao thêm đầu việc</button>
+      <button class="chip" data-act="report" data-send="Cho mình xem báo cáo đầy đủ">Xem báo cáo đầy đủ</button>
+      <button class="chip" data-intent="dscr" data-send="DSCR ở kịch bản xấu là bao nhiêu?">Kịch bản DSCR xấu</button>
+      <button class="chip" data-intent="receivable" data-send="Giải trình khoản phải thu khác tăng đột biến Q4">Khoản phải thu Q4</button>
+    </div>
+
+    <form class="composer" data-composer>
+      <div class="field">
+        <textarea rows="1" placeholder="Nhắn cho Trợ lý Thẩm định…" aria-label="Soạn tin nhắn"></textarea>
+        <button type="submit" class="send" aria-label="Gửi">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8 14 3l-4 12-2.6-4.6L2 8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="hint2">Bản prototype — phản hồi của Trợ lý là kịch bản minh họa. Quyết định cấp tín dụng do chuyên viên &amp; cấp phê duyệt.</div>
+    </form>
+  </div>
+
+  <div class="tabpane" data-pane="summary">
+  <div class="panel-b">
+    <p class="intro">Mình đã xử lý sơ bộ hồ sơ <span class="mono">LOS-2026-04871</span> và bàn giao cho chuyên viên thẩm định. Tóm tắt phần việc:</p>
+
+    <div class="pstats">
+      <div class="pstat"><b>8/9</b><span>đầu việc hoàn tất</span></div>
+      <div class="pstat"><b>~6,5 giờ</b><span>thời gian tiết kiệm</span></div>
+      <div class="pstat warn"><b>3</b><span>nội dung cần bạn xác nhận</span></div>
+      <div class="pstat"><b>82%</b><span>mức sẵn sàng tờ trình</span></div>
+    </div>
+
+    <p class="pgroup-h">Cần bạn xác nhận</p>
+    <div class="need">
+      <div class="n hi">
+        <span class="dot"></span>
+        <div><b>Thẩm quyền vay chưa đủ.</b> Nghị quyết HĐQT chỉ duyệt phương án 20 tỷ, thấp hơn mức đề nghị 25 tỷ. Đã tạo yêu cầu bổ sung.</div>
+      </div>
+      <div class="n hi">
+        <span class="dot"></span>
+        <div><b>Giao dịch bên liên quan.</b> Cho vay 4,2 tỷ đối với công ty do em ruột TGĐ sở hữu, lãi suất 0%, kỳ hạn không rõ.</div>
+      </div>
+      <div class="n">
+        <span class="dot"></span>
+        <div><b>Chênh lệch doanh thu / dòng tiền.</b> Doanh thu Q4/2025 tăng 34% nhưng dòng tiền HĐKD cùng kỳ âm — do tăng mạnh khoản phải thu.</div>
+      </div>
+    </div>
+
+    <p class="pgroup-h">Đầu việc đã hoàn tất</p>
+    <div class="tasklist">
+      <div class="tl"><span class="c">✓</span><span>Trích xuất &amp; chuẩn hóa BCTC 2023–2025</span><span class="pc">94%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Phân tích chỉ số tài chính &amp; DSCR</span><span class="pc">88%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Tra cứu CIC &amp; lịch sử tín dụng</span><span class="pc">97%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Rà soát hồ sơ pháp lý &amp; thẩm quyền</span><span class="pc">91%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Phân tích ngành &amp; vị thế cạnh tranh</span><span class="pc">73%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Kiểm tra dấu hiệu cảnh báo sớm</span><span class="pc">69%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Định giá sơ bộ tài sản bảo đảm</span><span class="pc">64%</span></div>
+      <div class="tl"><span class="c">✓</span><span>Dự thảo tờ trình &amp; đề xuất cấu trúc khoản vay</span><span class="pc">82%</span></div>
+      <div class="tl"><span class="c wait">•</span><span>Kiểm tra giới hạn cấp TD / nhóm KH liên quan</span><span class="pc">chờ</span></div>
+    </div>
+  </div>
+
+  <div class="panel-f">
+    <div class="row">
+      <button class="btn primary" type="button" data-goto-report>Xem báo cáo thẩm định đầy đủ →</button>
+    </div>
+    <div class="row">
+      <button class="btn" type="button" data-jump="chat" data-act="insert-draft">Chèn tờ trình nháp</button>
+      <button class="btn" type="button" data-jump="chat" data-act="assign">Giao thêm đầu việc</button>
+    </div>
+    <div class="fine">Cập nhật 10:42 hôm nay · Mọi kết luận cấp tín dụng do chuyên viên &amp; cấp phê duyệt quyết định.</div>
+  </div>
+  </div><!-- /pane summary -->
+
+  <div class="tabpane" data-pane="report">
+    <div class="report-wrap">
+      <div class="report-bar">
+        <span>Kết quả Trợ lý Thẩm định · hồ sơ <span class="mono">LOS-2026-04871</span></span>
+        <a href="appraisal-agent.html" target="_blank" rel="noopener">Mở trong tab mới
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M4 2h6v6M10 2 5 7M8 8v2H2V4h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+      <iframe data-report title="Báo cáo thẩm định doanh nghiệp — Trợ lý Thẩm định" loading="lazy"></iframe>
+    </div>
+  </div>
+</aside>
+
+<script>
+  (function () {
+    var REPORT_SRC = "appraisal-agent.html";
+    var panel = document.querySelector(".panel");
+    var scrim = document.querySelector(".scrim");
+    var fab = document.querySelector(".fab");
+    var callout = document.querySelector(".callout");
+    var iframe = panel.querySelector("[data-report]");
+    var tabs = panel.querySelectorAll(".panel-tabs [role=tab]");
+    var panes = panel.querySelectorAll(".tabpane");
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function showTab(name) {
+      tabs.forEach(function (t) {
+        t.setAttribute("aria-selected", t.dataset.tab === name ? "true" : "false");
+      });
+      panes.forEach(function (p) {
+        p.classList.toggle("active", p.dataset.pane === name);
+      });
+      if (name === "report" && iframe && !iframe.src) iframe.src = REPORT_SRC;
+    }
+
+    function openAgent(tab) {
+      panel.classList.add("open");
+      panel.setAttribute("aria-modal", window.innerWidth < 761 ? "true" : "false");
+      scrim.classList.add("show");
+      fab.hidden = true;
+      if (callout) callout.hidden = true;
+      showTab(tab || "summary");
+      var x = panel.querySelector(".x");
+      if (x) x.focus();
+    }
+    function closeAgent() {
+      panel.classList.remove("open");
+      scrim.classList.remove("show");
+      fab.hidden = false;
+    }
+
+    // The floating icon opens straight to the conversation with the assistant.
+    fab.addEventListener("click", function () { openAgent("chat"); });
+
+    document.querySelectorAll("[data-open-agent]").forEach(function (el) {
+      if (el === fab) return;
+      el.addEventListener("click", function () { openAgent("chat"); });
+    });
+    document.querySelectorAll("[data-close-agent]").forEach(function (el) {
+      el.addEventListener("click", closeAgent);
+    });
+    var goto = panel.querySelector("[data-goto-report]");
+    if (goto) goto.addEventListener("click", function () { showTab("report"); });
+
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () { showTab(t.dataset.tab); });
+    });
+
+    var dc = document.querySelector("[data-dismiss-callout]");
+    if (dc) dc.addEventListener("click", function () { if (callout) callout.hidden = true; });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && panel.classList.contains("open")) closeAgent();
+    });
+
+    // Reveal on visit: the assistant surfaces itself and opens the conversation.
+    window.setTimeout(function () { openAgent("chat"); }, reduce ? 0 : 650);
+    // If the user closes it, a gentle nudge stays available.
+    window.setTimeout(function () {
+      if (!panel.classList.contains("open") && callout) callout.hidden = false;
+    }, reduce ? 400 : 12000);
+  })();
+</script>
+
+<script>
+  // ---- Conversation with the assistant (scripted prototype) ----
+  (function () {
+    var panel = document.querySelector(".panel");
+    var pane = panel.querySelector('[data-pane="chat"]');
+    if (!pane) return;
+    var thread = pane.querySelector(".chat-thread");
+    var form = pane.querySelector("[data-composer]");
+    var ta = form.querySelector("textarea");
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    var clock = 10 * 60 + 45;
+    function now() {
+      clock += 1;
+      var h = Math.floor(clock / 60), m = clock % 60;
+      return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+    }
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+      });
+    }
+    function scrollDown() { thread.scrollTop = thread.scrollHeight; }
+    new MutationObserver(scrollDown).observe(thread, { childList: true });
+
+    function addMsg(side, html) {
+      var wrap = document.createElement("div");
+      wrap.className = "msg " + (side === "me" ? "me" : "ai");
+      wrap.innerHTML =
+        '<div class="m-ava">' + (side === "me" ? "LH" : "TĐ") + "</div>" +
+        '<div><div class="bubble">' + html +
+        '<div class="m-time">' + now() + "</div></div></div>";
+      thread.appendChild(wrap);
+      return wrap;
+    }
+    function addTyping() {
+      var wrap = document.createElement("div");
+      wrap.className = "msg ai";
+      wrap.innerHTML = '<div class="m-ava">TĐ</div><div><div class="bubble"><div class="typing"><i></i><i></i><i></i></div></div></div>';
+      thread.appendChild(wrap);
+      return wrap;
+    }
+    function aiSay(html, delay) {
+      var t = addTyping();
+      window.setTimeout(function () { t.remove(); addMsg("ai", html); }, reduce ? 0 : (delay || 750));
+    }
+
+    function addFeed(text, ai) {
+      var f = document.querySelector(".card-c.feed");
+      if (!f) return;
+      var d = document.createElement("div");
+      d.className = "fi";
+      d.innerHTML = '<span class="d' + (ai ? " ai" : "") + '"></span><div>' + esc(text) + ' <div class="t">vừa xong</div></div>';
+      f.insertBefore(d, f.firstChild);
+    }
+    function addTaskRow(task) {
+      var tl = document.querySelector(".tasklist");
+      if (!tl) return;
+      var d = document.createElement("div");
+      d.className = "tl";
+      d.innerHTML = '<span class="c wait">•</span><span>' + esc(task) + '</span><span class="pc">đang chạy</span>';
+      tl.appendChild(d);
+    }
+    function gotoReport() { panel.querySelector('.panel-tabs [data-tab="report"]').click(); }
+
+    var REPLIES = {
+      dscr: '<p>Kịch bản cơ sở: DSCR ước tính <b>1,25 lần</b>. Em chạy thêm hai kịch bản bất lợi:</p><ul><li>Biên LN gộp giảm 2 điểm % → DSCR <b>1,08</b> — dưới ngưỡng tối thiểu 1,2.</li><li>Kỳ thu tiền giãn 58 → 75 ngày → DSCR <b>1,16</b>.</li></ul><p>Em kiến nghị bổ sung điều kiện duy trì biên LN gộp ≥ 13% và trần công nợ phải thu vào tờ trình.</p>',
+      receivable: '<p>“Phải thu khác” tăng <b>6,1 tỷ</b> trong Q4/2025, tập trung ở 2 đối tượng chưa nêu trong thuyết minh, trùng thời điểm doanh thu tăng 34% nhưng dòng tiền HĐKD âm.</p><p>Đề xuất yêu cầu bên vay: (1) bảng kê chi tiết công nợ phải thu khác, (2) biên bản đối chiếu xác nhận công nợ, (3) giải trình quan hệ với các đối tượng này.</p>',
+      authority: '<p>Nghị quyết HĐQT số 04/2026 chỉ phê duyệt phương án vay tối đa <b>20 tỷ</b>, thấp hơn mức đề nghị 25 tỷ.</p><p>Điều lệ quy định giao dịch trên 15% tổng tài sản mới phải qua ĐHĐCĐ — khoản vay ~11% nên chỉ cần <b>nghị quyết HĐQT bổ sung</b>. Em đã tạo yêu cầu bổ sung trong LOS, hạn 29/08/2026.</p>',
+      interview: '<p>Em đã dựng sẵn đề cương phỏng vấn khách hàng gồm 12 câu, tập trung vào: khoản cho vay bên liên quan 4,2 tỷ, kế hoạch thu hồi công nợ phải thu khác, và năng lực đội ngũ điều hành chủ chốt.</p><p>Chị muốn em xuất phiếu phỏng vấn ra file, hay giao thành đầu việc để em chuẩn bị kèm hồ sơ kiểm tra thực địa?</p>'
+    };
+    var GENERIC = '<p>Em ghi nhận nội dung này và sẽ bổ sung vào hồ sơ thẩm định, cập nhật tờ trình nháp tương ứng. Nếu cần theo dõi tiến độ, chị giao cho em thành một đầu việc cụ thể nhé.</p>';
+
+    var inserted = false;
+    function doInsertDraft() {
+      if (inserted) {
+        aiSay('<p>Tờ trình nháp v0.3 đã nằm trong hồ sơ rồi. Em có thể tạo bản v0.4 nếu chị cần chỉnh nội dung.</p>', 450);
+        return;
+      }
+      inserted = true;
+      aiSay('<p>✓ Đã chèn <b>tờ trình nháp v0.3</b> vào hồ sơ <span class="mono">LOS-2026-04871</span> — mục “Tờ trình thẩm định”. Bản trước được lưu vào lịch sử chỉnh sửa.</p><div class="ac-act" style="border:0;background:none;padding:8px 0 0"><button class="cta" data-act="report">Xem nội dung</button></div>', 500);
+      addFeed("Lê Hà chèn tờ trình nháp v0.3 vào hồ sơ (qua Trợ lý)", true);
+    }
+
+    var TASKS = [
+      "Phân tích độ nhạy DSCR theo giá nguyên liệu đầu vào",
+      "Đối chiếu hợp đồng đầu ra với doanh thu ghi nhận 2025",
+      "Tra soát toàn bộ giao dịch bên liên quan 24 tháng",
+      "Chuẩn bị phiếu phỏng vấn KH và đề cương kiểm tra thực địa",
+      "Chuẩn hóa nhóm khoản mục phải thu và lập bảng tuổi nợ"
+    ];
+    function doAssignForm() {
+      var opts = TASKS.map(function (t) { return "<option>" + esc(t) + "</option>"; }).join("");
+      aiSay(
+        '<p>Chị chọn đầu việc cần giao, em đưa vào hàng đợi và báo lại tiến độ ngay tại đây:</p>' +
+        '<div class="acard"><div class="ac-h">Giao đầu việc cho Trợ lý</div>' +
+        '<div class="ac-b"><div class="tform">' +
+        '<div><label>Đầu việc</label><select data-task-select>' + opts + '</select></div>' +
+        '<div><label>Mức ưu tiên</label><select data-task-prio><option>Bình thường</option><option>Cao</option><option>Gấp</option></select></div>' +
+        '<div><label>Ghi chú (tuỳ chọn)</label><input data-task-note placeholder="Ví dụ: cần trước cuộc họp thẩm định"></div>' +
+        '</div></div>' +
+        '<div class="ac-act"><button class="cta primary" data-act="assign-submit">Giao việc</button></div></div>',
+        500
+      );
+    }
+    function doAssignSubmit(btn) {
+      var card = btn.closest(".acard");
+      var sel = card.querySelector("[data-task-select]");
+      var prio = card.querySelector("[data-task-prio]");
+      var note = card.querySelector("[data-task-note]");
+      var task = sel.value, p = prio.value, n = note.value.trim();
+      sel.disabled = prio.disabled = note.disabled = true;
+      card.querySelector(".ac-act").innerHTML = '<span style="font-size:12px;font-weight:600;color:var(--good)">✓ Đã giao việc</span>';
+      addMsg("me", "Giao việc: <b>" + esc(task) + "</b> · ưu tiên " + esc(p) + (n ? " · " + esc(n) : ""));
+      aiSay('<p>Em đã nhận việc <b>' + esc(task) + '</b>. Dự kiến hoàn thành trong 25–40 phút; em sẽ cập nhật kết quả vào mục tương ứng của tờ trình và báo lại chị ở đây.</p>', 650);
+      addTaskRow(task);
+      addFeed("Trợ lý nhận đầu việc mới: “" + task + "”", true);
+    }
+
+    function route(text) {
+      var s = text.toLowerCase();
+      if (/dscr|khả năng trả nợ|dòng tiền trả/.test(s)) return aiSay(REPLIES.dscr);
+      if (/phải thu/.test(s)) return aiSay(REPLIES.receivable);
+      if (/thẩm quyền|nghị quyết|hđqt/.test(s)) return aiSay(REPLIES.authority);
+      if (/phỏng vấn|thực địa/.test(s)) return aiSay(REPLIES.interview);
+      if (/tờ trình|chèn/.test(s)) return doInsertDraft();
+      if (/giao.*việc|thêm việc|đầu việc/.test(s)) return doAssignForm();
+      if (/báo cáo|đầy đủ|report/.test(s)) { gotoReport(); return aiSay('<p>Em mở báo cáo thẩm định đầy đủ ở tab bên cạnh rồi nhé.</p>', 350); }
+      return aiSay(GENERIC);
+    }
+
+    pane.addEventListener("click", function (e) {
+      var el = e.target.closest("[data-act],[data-intent]");
+      if (!el || !pane.contains(el)) return;
+      var act = el.getAttribute("data-act");
+      var intent = el.getAttribute("data-intent");
+      var send = el.getAttribute("data-send");
+      if (send && (el.classList.contains("chip") || intent)) addMsg("me", esc(send));
+
+      if (intent && REPLIES[intent]) return aiSay(REPLIES[intent]);
+      if (act === "report") {
+        gotoReport();
+        if (el.classList.contains("chip")) aiSay('<p>Em chuyển sang tab <b>Báo cáo đầy đủ</b> nhé.</p>', 300);
+        return;
+      }
+      if (act === "insert-draft") return doInsertDraft();
+      if (act === "assign") return doAssignForm();
+      if (act === "assign-submit") return doAssignSubmit(el);
+      if (act === "download") return aiSay('<p>Em đang xuất bản <b>.docx</b> của tờ trình nháp v0.3. File sẽ xuất hiện trong mục <b>Hồ sơ tài liệu</b> của hồ sơ trong khoảng 1 phút.</p>', 500);
+      if (send) return aiSay(GENERIC);
+    });
+
+    // Footer shortcuts in the summary tab jump into the conversation
+    panel.addEventListener("click", function (e) {
+      var b = e.target.closest('[data-jump="chat"]');
+      if (!b) return;
+      panel.querySelector('.panel-tabs [data-tab="chat"]').click();
+      var act = b.getAttribute("data-act");
+      window.setTimeout(function () {
+        if (act === "insert-draft") doInsertDraft();
+        if (act === "assign") doAssignForm();
+      }, 280);
+    });
+
+    ta.addEventListener("input", function () {
+      ta.style.height = "auto";
+      ta.style.height = Math.min(ta.scrollHeight, 96) + "px";
+    });
+    ta.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+    });
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var v = ta.value.trim();
+      if (!v) return;
+      addMsg("me", esc(v));
+      ta.value = "";
+      ta.style.height = "auto";
+      route(v);
+    });
+
+    panel.querySelector('.panel-tabs [data-tab="chat"]').addEventListener("click", function () {
+      window.setTimeout(scrollDown, 40);
+    });
+  })();
+</script>
+
+</body>
+</html>

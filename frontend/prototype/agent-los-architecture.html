@@ -1,0 +1,1297 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiến trúc Trợ lý Thẩm định ⇄ LOS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F5F7F5;
+    --surface: #FFFFFF;
+    --surface-2: #EDF1EE;
+    --border: #D7DDD8;
+    --border-strong: #C2CBC4;
+    --text: #16211C;
+    --text-muted: #59665F;
+    --accent: #0E6E56;
+    --accent-ink: #0A4F3E;
+    --accent-soft: #DEEDE6;
+    --gold: #9A7128;
+    --gold-soft: #F0E6D0;
+    --good: #1F7A4D;
+    --warn: #93610F;
+    --crit: #B23F35;
+    --good-soft: #DCEDE2;
+    --warn-soft: #F3E7CF;
+    --crit-soft: #F2DEDB;
+    --blue: #2C5A88;
+    --blue-soft: #DDE7F0;
+    --shadow-sm: 0 1px 2px rgba(22, 33, 28, .05);
+    --shadow: 0 1px 2px rgba(22, 33, 28, .04), 0 8px 24px -12px rgba(22, 33, 28, .12);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E1613; --surface: #14201C; --surface-2: #1C2A25; --border: #2A3A34; --border-strong: #3A4D45;
+      --text: #E7ECE8; --text-muted: #98A69E; --accent: #3DBF9B; --accent-ink: #7FD9C2; --accent-soft: #123329;
+      --gold: #CBA35E; --gold-soft: #2E2716; --good: #46C07E; --warn: #D69A3E; --crit: #E0685C;
+      --good-soft: #14301F; --warn-soft: #322611; --crit-soft: #34211E;
+      --blue: #7FB0DA; --blue-soft: #16283A;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E1613; --surface: #14201C; --surface-2: #1C2A25; --border: #2A3A34; --border-strong: #3A4D45;
+    --text: #E7ECE8; --text-muted: #98A69E; --accent: #3DBF9B; --accent-ink: #7FD9C2; --accent-soft: #123329;
+    --gold: #CBA35E; --gold-soft: #2E2716; --good: #46C07E; --warn: #D69A3E; --crit: #E0685C;
+    --good-soft: #14301F; --warn-soft: #322611; --crit-soft: #34211E;
+    --blue: #7FB0DA; --blue-soft: #16283A;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px -14px rgba(0,0,0,.55);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: "Spectral", Georgia, serif; font-weight: 500; text-wrap: balance; margin: 0; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent-ink); }
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .88em;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px;
+  }
+  .eyebrow { font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+
+  /* ---------- App bar ---------- */
+  .appbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 20px;
+    padding: 14px 28px; background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; position: sticky; top: 0; z-index: 30;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px; flex: none; border-radius: 8px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-ink));
+    display: grid; place-items: center; color: #fff; font-family: "Spectral", serif; font-size: 19px; font-weight: 600;
+  }
+  .brand-name { font-size: 14px; font-weight: 600; }
+  .brand-sub { font-size: 12px; color: var(--text-muted); }
+  .appbar nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .appbar nav a {
+    font-size: 12px; font-weight: 600; text-decoration: none; color: var(--text-muted);
+    padding: 6px 10px; border-radius: 7px;
+  }
+  .appbar nav a:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ---------- Layout ---------- */
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 34px 28px 90px; }
+  section { margin-bottom: 52px; scroll-margin-top: 76px; }
+  .sec-head { margin-bottom: 18px; }
+  .sec-head h2 { font-size: 24px; }
+  .sec-head .lead { font-size: 14px; color: var(--text-muted); margin-top: 6px; max-width: 70ch; }
+  .sec-num {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent);
+    font-weight: 500; letter-spacing: .1em;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-sm); padding: 20px 22px;
+  }
+  .card + .card { margin-top: 14px; }
+
+  p { margin: 0 0 12px; }
+  p:last-child { margin-bottom: 0; }
+  ul { margin: 8px 0; padding-left: 20px; }
+  li { margin: 5px 0; }
+
+  .callout-box {
+    border-left: 3px solid var(--gold); background: var(--surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--gold);
+    border-radius: 8px; padding: 14px 16px; font-size: 13.5px; margin: 14px 0;
+  }
+
+  /* ---------- Architecture stack ---------- */
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .layer {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+    box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .layer-h {
+    display: flex; align-items: baseline; gap: 10px; padding: 10px 16px;
+    background: var(--surface-2); border-bottom: 1px solid var(--border);
+  }
+  .layer-h b { font-size: 13px; }
+  .layer-h span { font-size: 11.5px; color: var(--text-muted); }
+  .layer-c { padding: 14px 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .node {
+    flex: 1 1 150px; min-width: 140px;
+    border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px;
+    background: var(--bg); font-size: 12.5px;
+  }
+  .node b { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 2px; font-family: "IBM Plex Sans", sans-serif; }
+  .node span { color: var(--text-muted); font-size: 11.5px; }
+  .node.accent { border-color: var(--accent); background: var(--accent-soft); }
+  .node.gold { border-color: var(--gold); background: var(--gold-soft); }
+  .node.blue { border-color: var(--blue); background: var(--blue-soft); }
+  .flowdown {
+    text-align: center; color: var(--text-muted); font-size: 18px; line-height: 1; margin: -4px 0;
+  }
+
+  /* ---------- Flow steps ---------- */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .fstep {
+    display: grid; grid-template-columns: 40px 1fr; gap: 16px; padding: 16px 0;
+    border-top: 1px solid var(--border);
+  }
+  .fstep:first-child { border-top: none; }
+  .fstep .idx {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--accent);
+    color: var(--accent); display: grid; place-items: center; font-family: "IBM Plex Mono", monospace;
+    font-size: 13px; font-weight: 500;
+  }
+  .fstep .body h4 { font-size: 15px; margin-bottom: 3px; }
+  .fstep .body p { font-size: 13.5px; margin-bottom: 6px; }
+  .lane {
+    display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 999px; margin-right: 6px; text-transform: uppercase;
+  }
+  .lane.los { background: var(--blue-soft); color: var(--blue); }
+  .lane.agent { background: var(--accent-soft); color: var(--accent-ink); }
+  .lane.comp { background: var(--gold-soft); color: var(--gold); }
+  .lane.human { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
+  .toolref { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--text-muted); }
+
+  /* ---------- Tables ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 620px; }
+  th, td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-family: "IBM Plex Sans", sans-serif; font-weight: 600; font-size: 11.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+  td .mono { font-size: 12px; }
+  td b { font-weight: 600; }
+
+  .principle {
+    display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 12px 0;
+    border-top: 1px solid var(--border); font-size: 13.5px;
+  }
+  .principle:first-child { border-top: none; }
+  .principle .p-n { font-family: "IBM Plex Mono", monospace; color: var(--accent); font-size: 13px; }
+  .principle b { font-weight: 600; }
+
+  pre {
+    margin: 12px 0 0; padding: 14px 16px; overflow-x: auto;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.6;
+  }
+  pre .c { color: var(--text-muted); }
+  pre .k { color: var(--accent-ink); font-weight: 500; }
+  pre .s { color: var(--gold); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .chk { list-style: none; padding: 0; margin: 0; }
+  .chk li { display: grid; grid-template-columns: 20px 1fr; gap: 9px; padding: 7px 0; font-size: 13px; border-top: 1px solid var(--border); }
+  .chk li:first-child { border-top: none; }
+  .chk li::before { content: "▢"; color: var(--accent); font-size: 13px; }
+
+  .ref { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 13px 0; border-top: 1px solid var(--border); font-size: 13px; }
+  .ref:first-child { border-top: none; }
+  .ref .r-t { font-weight: 600; }
+  .ref .r-src { font-size: 11.5px; color: var(--text-muted); font-family: "IBM Plex Mono", monospace; }
+  .ref .r-note { font-size: 12.5px; color: var(--text-muted); }
+  .ref a { word-break: break-word; }
+
+  .tag {
+    display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); margin: 2px 4px 2px 0;
+  }
+  .tag.w { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+  .tag.r { background: var(--crit-soft); border-color: transparent; color: var(--crit); }
+  .tag.g { background: var(--good-soft); border-color: transparent; color: var(--good); }
+
+  /* ---------- Wiring diagram ---------- */
+  .wire-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .wire-scroll svg { display: block; min-width: 840px; width: 100%; height: auto; }
+  .wire-scroll text { font-family: "IBM Plex Sans", sans-serif; }
+  .wire-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  .wire-legend i { display: inline-block; width: 22px; height: 0; border-top-width: 2px; border-top-style: solid; vertical-align: middle; margin-right: 6px; }
+
+  /* ---------- Phase strip ---------- */
+  .pstrip { display: flex; gap: 0; flex-wrap: wrap; margin-bottom: 8px; }
+  .pstrip .ps {
+    flex: 1 1 120px; border: 1px solid var(--border); border-right: none; background: var(--surface);
+    padding: 9px 12px; font-size: 12px; position: relative;
+  }
+  .pstrip .ps:first-child { border-radius: 8px 0 0 8px; }
+  .pstrip .ps:last-child { border-right: 1px solid var(--border); border-radius: 0 8px 8px 0; }
+  .pstrip .ps b { display: block; font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--accent); }
+
+  /* ---------- Sequence call cards ---------- */
+  .phase { margin-top: 20px; }
+  .phase-h { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .phase-h .pn {
+    width: 24px; height: 24px; border-radius: 6px; background: var(--accent); color: #fff; flex: none;
+    display: grid; place-items: center; font-family: "IBM Plex Mono", monospace; font-size: 12px;
+  }
+  .phase-h h4 { font-size: 15px; }
+  .seq { display: flex; flex-direction: column; gap: 8px; border-left: 2px solid var(--border); padding-left: 18px; margin-left: 11px; }
+  .call {
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px 12px; position: relative;
+  }
+  .call::before { content: ""; position: absolute; left: -19px; top: 17px; width: 13px; height: 2px; background: var(--border); }
+  .call.comp { border-color: var(--gold); background: var(--gold-soft); }
+  .call .dir { font-size: 10.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .call .fn { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; font-weight: 500; color: var(--accent-ink); word-break: break-word; }
+  .call.comp .fn { color: var(--gold); }
+  .call .ret { font-size: 12.5px; margin-top: 5px; }
+  .call .ret::before { content: "↳ "; color: var(--text-muted); }
+  .call .rem { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .call .rem b { color: var(--text); font-weight: 600; }
+
+  footer.note { max-width: 1080px; margin: 0 auto; padding: 0 28px 60px; font-size: 12px; color: var(--text-muted); }
+  footer.note .disc {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold);
+    border-radius: 8px; padding: 13px 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="brand">
+    <div class="brand-mark">đ</div>
+    <div>
+      <div class="brand-name">Trợ lý Thẩm định ⇄ Hệ thống LOS · Khối KHDN</div>
+      <div class="brand-sub">Bản thiết kế kiến trúc &amp; luồng vận hành · prototype v0.1</div>
+    </div>
+  </div>
+  <nav>
+    <a href="#overview">Tổng quan</a>
+    <a href="#arch">Kiến trúc</a>
+    <a href="#flow">Luồng vận hành</a>
+    <a href="#principles">Nguyên tắc tool</a>
+    <a href="#catalog">Danh mục tool</a>
+    <a href="#compliance">Module Tuân thủ</a>
+    <a href="#wire">Sơ đồ kết nối</a>
+    <a href="#fs-flow">Ví dụ: Phân tích BCTC</a>
+    <a href="#backlog">Việc LOS phải làm</a>
+    <a href="#refs">Tham khảo</a>
+    <!-- section order: 06 compliance · 07 wire · 08 fs-flow · 09 backlog · 10 refs -->
+  </nav>
+</div>
+
+<div class="wrap">
+
+  <!-- ============ OVERVIEW ============ -->
+  <section id="overview">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Nguyên tắc nền tảng</h2>
+      <p class="lead">Agent không thao tác trực tiếp trên cơ sở dữ liệu hay màn hình của LOS. LOS mở ra một
+        <b>lớp công cụ (tool layer / MCP server)</b> — tập hợp các hành động có kiểm soát, có kiểm toán — và Agent chỉ
+        làm việc thông qua lớp này. Mọi phán quyết liên quan chính sách được tách ra một <b>module Tuân thủ</b> riêng.</p>
+    </div>
+
+    <div class="card">
+      <div class="grid2">
+        <div>
+          <h4 style="font-size:15px;margin-bottom:8px">Agent chịu trách nhiệm</h4>
+          <ul>
+            <li>Lập kế hoạch xử lý hồ sơ, chọn và gọi tool theo thứ tự hợp lý.</li>
+            <li>Tổng hợp, phân tích, diễn giải; soạn tờ trình nháp.</li>
+            <li>Đánh dấu điểm cần con người xác nhận; đề xuất (không quyết định).</li>
+            <li>Học từ phản hồi chuyên viên qua từng hồ sơ.</li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="font-size:15px;margin-bottom:8px">LOS chịu trách nhiệm</h4>
+          <ul>
+            <li>Cung cấp bộ tool theo <b>từng năng lực nghiệp vụ</b> (không theo màn hình).</li>
+            <li>Xác thực, phân quyền, giới hạn tần suất, ghi <b>audit trace</b> bất biến cho mọi lệnh gọi.</li>
+            <li>Làm "người môi giới phê duyệt": hành động rủi ro cao phải chờ người bấm duyệt.</li>
+            <li>Vận hành <b>module Tuân thủ</b> là điểm chốt chặn duy nhất cho mọi nội dung tín dụng.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout-box">
+        <b>Ranh giới trách nhiệm:</b> Agent tạo ra <i>bản nháp và khuyến nghị</i>. Mọi thay đổi trạng thái hồ sơ,
+        gửi yêu cầu ra ngoài, hay kết luận cấp tín dụng đều là hành động của <i>con người</i>, được thực thi qua tool
+        dưới danh tính "on-behalf-of" và lưu vết đầy đủ.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ARCHITECTURE ============ -->
+  <section id="arch">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Kiến trúc phân lớp</h2>
+      <p class="lead">Năm lớp, luồng gọi đi từ trên xuống. Lớp Cổng tool (MCP Gateway) là nơi tập trung xác thực,
+        phân quyền, kiểm toán và điều phối phê duyệt.</p>
+    </div>
+
+    <div class="stack">
+      <div class="layer">
+        <div class="layer-h"><b>1 · Con người</b><span>Chuyên viên QHKH · Chuyên viên thẩm định · Cấp phê duyệt</span></div>
+        <div class="layer-c">
+          <div class="node blue"><b>Giao diện LOS</b><span>Hồ sơ tín dụng, panel Trợ lý, hộp thoại xác nhận</span></div>
+          <div class="node blue"><b>Hàng đợi phê duyệt</b><span>Duyệt/từ chối các hành động Agent đề xuất</span></div>
+          <div class="node blue"><b>Kênh phản hồi</b><span>Nhận xét chuyên viên → dữ liệu huấn luyện</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↓</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>2 · Agent Runtime (Trợ lý Thẩm định)</b><span>LLM + orchestration, tách khỏi LOS</span></div>
+        <div class="layer-c">
+          <div class="node accent"><b>Planner / Orchestrator</b><span>Chia nhỏ hồ sơ thành đầu việc, điều phối gọi tool</span></div>
+          <div class="node accent"><b>Bộ kỹ năng &amp; quy tắc</b><span>Playbook thẩm định, mẫu tờ trình, checklist</span></div>
+          <div class="node accent"><b>Bộ nhớ hồ sơ</b><span>Ngữ cảnh case, bài học từ phản hồi trước</span></div>
+          <div class="node accent"><b>MCP Client</b><span>Kết nối tới Cổng tool của LOS</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↓</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>3 · LOS MCP Gateway (Cổng tool)</b><span>Điểm kiểm soát trung tâm — do LOS xây &amp; vận hành</span></div>
+        <div class="layer-c">
+          <div class="node"><b>AuthN / AuthZ</b><span>Danh tính Agent + "on-behalf-of" chuyên viên; quyền = giao của cả hai</span></div>
+          <div class="node"><b>Scope &amp; Rate limit</b><span>read/write scope riêng, hạn mức lệnh/giờ</span></div>
+          <div class="node"><b>Approval Broker</b><span>Hành động rủi ro cao → tạo phiếu chờ người duyệt</span></div>
+          <div class="node"><b>Audit Trace</b><span>Ghi bất biến: ai, tool nào, tham số, kết quả, nguồn</span></div>
+          <div class="node"><b>Schema Registry</b><span>Phiên bản hoá tool, tương thích ngược</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↓</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>4 · Bộ tool nghiệp vụ</b><span>Mỗi module = một năng lực, một bộ động từ nhất quán</span></div>
+        <div class="layer-c">
+          <div class="node"><b>document.*</b><span>OCR, phân loại, trích xuất trường</span></div>
+          <div class="node"><b>spreading.*</b><span>Chuẩn hoá BCTC, tính chỉ số</span></div>
+          <div class="node"><b>bureau.*</b><span>CIC, nhóm nợ, dư nợ TCTD</span></div>
+          <div class="node"><b>party.*</b><span>Thông tin KH, người liên quan, sơ đồ sở hữu</span></div>
+          <div class="node"><b>collateral.*</b><span>TSBĐ, định giá tham chiếu</span></div>
+          <div class="node"><b>creditmemo.*</b><span>Tờ trình theo mẫu, mục, phiên bản</span></div>
+          <div class="node"><b>workflow.*</b><span>Đầu việc, yêu cầu bổ sung, chuyển bước</span></div>
+          <div class="node"><b>datastore.*</b><span>CRUD chung: get / get_collection / create / update</span></div>
+          <div class="node"><b>notify.*</b><span>Thông báo RM / thẩm định / phê duyệt</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↓</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>4b · Module Tuân thủ (Compliance MCP)</b><span>Tách riêng — chốt chặn duy nhất cho mọi nội dung tín dụng</span></div>
+        <div class="layer-c">
+          <div class="node gold"><b>compliance.evaluate</b><span>Chấm một đề xuất/cấu trúc khoản vay theo toàn bộ chính sách</span></div>
+          <div class="node gold"><b>compliance.check_limit</b><span>Giới hạn 1 KH / nhóm KH liên quan / room ngành</span></div>
+          <div class="node gold"><b>compliance.check_authority</b><span>Ma trận thẩm quyền phê duyệt nội bộ</span></div>
+          <div class="node gold"><b>compliance.screen_watchlist</b><span>AML/CFT, danh sách cảnh báo, hạn chế cấp TD</span></div>
+          <div class="node gold"><b>compliance.explain_rule</b><span>Trả nguyên văn quy định + trích dẫn nguồn</span></div>
+        </div>
+      </div>
+      <div class="flowdown">↓</div>
+
+      <div class="layer">
+        <div class="layer-h"><b>5 · Hệ thống nguồn (systems of record)</b><span>LOS tích hợp — Agent không chạm trực tiếp</span></div>
+        <div class="layer-c">
+          <div class="node"><b>Core banking (T24)</b><span>Dư nợ, quan hệ khách hàng</span></div>
+          <div class="node"><b>CIC</b><span>Báo cáo tín dụng quốc gia</span></div>
+          <div class="node"><b>Kho tài liệu / ECM</b><span>Hồ sơ scan, hợp đồng</span></div>
+          <div class="node"><b>CSDL chính sách</b><span>Văn bản, decision table, hiệu lực theo ngày</span></div>
+          <div class="node"><b>Data warehouse</b><span>Chỉ số ngành, giá BĐS KCN</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FLOW ============ -->
+  <section id="flow">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Luồng vận hành end-to-end</h2>
+      <p class="lead">Từ lúc hồ sơ chuyển sang bước Thẩm định đến khi bàn giao cho chuyên viên. Mỗi bước ghi rõ
+        làn trách nhiệm và tool được gọi.</p>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <span class="lane los">LOS</span> <span class="lane agent">Agent</span>
+      <span class="lane comp">Tuân thủ</span> <span class="lane human">Con người</span>
+    </div>
+
+    <div class="card">
+      <div class="flow">
+
+        <div class="fstep">
+          <div class="idx">1</div>
+          <div class="body">
+            <h4>Kích hoạt</h4>
+            <p><span class="lane los">LOS</span> Chuyên viên QHKH chuyển hồ sơ sang bước "Thẩm định". LOS phát sự kiện
+              <code>case.stage_changed</code> tới hàng đợi công việc của Agent, kèm <code>case_id</code> và bộ quyền tạm thời.</p>
+            <p class="toolref">webhook/event → agent job queue</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">2</div>
+          <div class="body">
+            <h4>Thu thập ngữ cảnh hồ sơ</h4>
+            <p><span class="lane agent">Agent</span> Đọc toàn cảnh hồ sơ: thông tin bên vay, đề nghị cấp tín dụng,
+              danh mục tài liệu, TSBĐ, phân công.</p>
+            <p class="toolref">datastore.get(case) · workflow.list_tasks · document.list · collateral.list</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">3</div>
+          <div class="body">
+            <h4>Lập kế hoạch thẩm định</h4>
+            <p><span class="lane agent">Agent</span> Sinh danh sách đầu việc theo playbook (spreading, chỉ số &amp; DSCR,
+              CIC, pháp lý, ngành, cảnh báo sớm, định giá TSBĐ, tờ trình, giới hạn cấp TD). Ghi kế hoạch vào hồ sơ để
+              chuyên viên theo dõi.</p>
+            <p class="toolref">workflow.create_tasks(plan)</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">4</div>
+          <div class="body">
+            <h4>Trích xuất &amp; chuẩn hoá tài liệu</h4>
+            <p><span class="lane los">LOS</span> Tool OCR/trích xuất trả về dữ liệu có cấu trúc <b>kèm <code>source_refs</code></b>
+              (file, trang, toạ độ) để mọi con số truy vết được về gốc.</p>
+            <p class="toolref">document.extract(doc_id, schema) · spreading.normalize(statements)</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">5</div>
+          <div class="body">
+            <h4>Phân tích &amp; tra cứu</h4>
+            <p><span class="lane agent">Agent</span> <span class="lane los">LOS</span> Tính chỉ số tài chính, DSCR, kịch bản
+              độ nhạy; tra CIC; dựng nhóm khách hàng liên quan từ sơ đồ sở hữu; định giá TSBĐ tham chiếu; quét dấu hiệu
+              cảnh báo sớm.</p>
+            <p class="toolref">spreading.compute_ratios · bureau.get_cic_report · party.get_related_group · collateral.estimate_value</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">6</div>
+          <div class="body">
+            <h4>Kiểm tra tuân thủ &amp; chính sách</h4>
+            <p><span class="lane comp">Tuân thủ</span> Với mỗi phương án cấu trúc khoản vay Agent cân nhắc, gọi
+              <code>compliance.evaluate(proposal)</code>. Module trả phán quyết <code>pass / fail / review</code> kèm
+              <code>rule_id</code>, phiên bản, trích dẫn văn bản. <b>Agent không tự diễn giải chính sách từ văn bản thô.</b></p>
+            <p class="toolref">compliance.evaluate · compliance.check_limit · compliance.check_authority · compliance.screen_watchlist</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">7</div>
+          <div class="body">
+            <h4>Soạn tờ trình nháp</h4>
+            <p><span class="lane agent">Agent</span> Ghép kết quả vào mẫu tờ trình (TT-KHDN-02). Mỗi luận điểm gắn nguồn;
+              mục kết luận và đánh giá định tính để trống chờ chuyên viên. Lưu bản nháp có phiên bản.</p>
+            <p class="toolref">creditmemo.create_draft(template, sections) · creditmemo.attach_to_case</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">8</div>
+          <div class="body">
+            <h4>Đề xuất hành động cần con người</h4>
+            <p><span class="lane agent">Agent</span> <span class="lane los">LOS</span> Với việc có tác động phụ (gửi yêu cầu
+              bổ sung hồ sơ, chuyển Phòng Thẩm định giá, lập phiếu phỏng vấn), Agent tạo <code>proposed_action</code>.
+              Approval Broker đưa vào hàng đợi duyệt của chuyên viên.</p>
+            <p class="toolref">workflow.propose(action) → approval queue</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">9</div>
+          <div class="body">
+            <h4>Bàn giao</h4>
+            <p><span class="lane agent">Agent</span> Cập nhật panel Trợ lý: 8/9 việc xong, 3 nội dung cần xác nhận, tờ trình
+              nháp sẵn sàng. Gửi thông báo cho chuyên viên thẩm định.</p>
+            <p class="toolref">notify.send(role=credit_officer) · datastore.update(case.ai_status)</p>
+          </div>
+        </div>
+
+        <div class="fstep">
+          <div class="idx">10</div>
+          <div class="body">
+            <h4>Rà soát &amp; vòng phản hồi</h4>
+            <p><span class="lane human">Con người</span> Chuyên viên duyệt/sửa từng mục, chấp nhận hoặc từ chối đề xuất,
+              hoàn thiện kết luận. <span class="lane los">LOS</span> ghi lại từng chỉnh sửa; điểm khác biệt giữa nháp và
+              bản cuối được đẩy về kênh phản hồi để Agent học.</p>
+            <p class="toolref">creditmemo.get_diff(v_draft, v_final) → feedback store</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRINCIPLES ============ -->
+  <section id="principles">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>Nguyên tắc thiết kế tool của LOS</h2>
+      <p class="lead">LOS thiết kế tool <b>theo năng lực nghiệp vụ</b>, không theo màn hình. Mỗi module phơi ra một bộ
+        động từ nhất quán — tương tự cách một module cơ sở dữ liệu luôn có <code>get</code>, <code>get_collection</code>,
+        <code>create</code>, <code>update</code>.</p>
+    </div>
+
+    <div class="card">
+      <div class="principle"><span class="p-n">01</span><div><b>Theo năng lực, không theo UI.</b> Một module = một lĩnh vực nghiệp vụ (tài liệu, spreading, CIC, TSBĐ, tờ trình, quy trình). Không tạo tool kiểu "mở màn hình X".</div></div>
+      <div class="principle"><span class="p-n">02</span><div><b>Bộ động từ chuẩn hoá.</b> Trong mỗi module dùng cùng một tập động từ: <code>get</code>, <code>get_collection</code> / <code>list</code>, <code>search</code>, <code>create</code>, <code>update</code>, <code>append</code>, <code>submit</code>, <code>simulate</code>. Tên đoán được.</div></div>
+      <div class="principle"><span class="p-n">03</span><div><b>Tách đọc và ghi.</b> Tool đọc và tool ghi ở scope quyền khác nhau. Mặc định Agent chỉ có scope đọc; scope ghi phải cấp riêng theo từng loại hành động.</div></div>
+      <div class="principle"><span class="p-n">04</span><div><b>Idempotency cho mọi lệnh ghi.</b> Mỗi lệnh ghi nhận <code>idempotency_key</code>; gọi lại không tạo bản ghi trùng.</div></div>
+      <div class="principle"><span class="p-n">05</span><div><b>Luôn gắn <code>case_id</code>, luôn trả <code>source_refs</code>.</b> Mọi kết quả có thể truy vết về tài liệu gốc (file + trang). Không có nguồn thì đánh dấu <code>unverified</code>.</div></div>
+      <div class="principle"><span class="p-n">06</span><div><b>Danh tính kép.</b> Tool chạy dưới <code>agent_id</code> + <code>on_behalf_of</code> (chuyên viên). Quyền hiệu lực = phần giao của quyền Agent và quyền người đó.</div></div>
+      <div class="principle"><span class="p-n">07</span><div><b>Hành động rủi ro cao không thực thi trực tiếp.</b> Trả <code>proposed_action</code> để đưa vào hàng đợi phê duyệt, thay vì tự đổi trạng thái hồ sơ hay gửi ra ngoài.</div></div>
+      <div class="principle"><span class="p-n">08</span><div><b>Schema có phiên bản, tương thích ngược.</b> Thêm trường không phá vỡ; xoá/đổi nghĩa phải qua phiên bản mới. Đăng ký ở Schema Registry.</div></div>
+      <div class="principle"><span class="p-n">09</span><div><b>Lỗi rõ ràng, không im lặng.</b> Mã lỗi phân loại được (thiếu quyền, thiếu dữ liệu, vi phạm chính sách, quá hạn mức) để Agent xử lý đúng, không "đoán".</div></div>
+      <div class="principle"><span class="p-n">10</span><div><b>Mọi lệnh gọi ghi audit trace bất biến.</b> Ai, tool nào, tham số, kết quả, các <code>rule_id</code> đã áp dụng, dấu thời gian — phục vụ thanh tra và tái hiện.</div></div>
+    </div>
+
+    <div class="callout-box">
+      <b>Về MCP:</b> Model Context Protocol là chuẩn mở để agent kết nối với hệ thống doanh nghiệp qua một giao diện
+      thống nhất. LOS đóng vai <i>MCP server</i>; Agent là <i>MCP client</i>. Các nền tảng cho vay như Blend (Autopilot
+      MCP) và nCino (Mortgage MCP) đang triển khai đúng mô hình này — xem mục Tham khảo.
+    </div>
+  </section>
+
+  <!-- ============ CATALOG ============ -->
+  <section id="catalog">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Danh mục tool nghiệp vụ của LOS</h2>
+      <p class="lead">Mỗi dòng là một module. Cột "động từ" cho thấy tính nhất quán giữa các module.</p>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Module</th><th>Năng lực</th><th>Tool tiêu biểu (động từ)</th><th>Ghi chú kiểm soát</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b class="mono">datastore.*</b></td>
+            <td>Truy cập dữ liệu hồ sơ dạng chung</td>
+            <td class="mono">get · get_collection · query · create · update · patch</td>
+            <td>Nền tảng cho các module khác. Chỉ đọc mặc định; ghi cần scope theo collection.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">document.*</b></td>
+            <td>Tài liệu: OCR, phân loại, trích xuất</td>
+            <td class="mono">list · get · classify · extract · compare</td>
+            <td>Kết quả kèm <code>source_refs</code>. <code>extract</code> nhận schema trường cần lấy.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">spreading.*</b></td>
+            <td>Chuẩn hoá BCTC &amp; chỉ số tài chính</td>
+            <td class="mono">normalize · get_statement · compute_ratios · simulate_scenario</td>
+            <td><code>simulate_scenario</code> thuần tính toán, không ghi. Ánh xạ về khung khoản mục chuẩn NH.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">bureau.*</b></td>
+            <td>Thông tin tín dụng ngoài (CIC…)</td>
+            <td class="mono">get_cic_report · get_debt_group · list_outstanding · get_related_persons</td>
+            <td>Chỉ đọc. Ghi log truy vấn CIC (mục đích, người yêu cầu). Có thể cần đồng ý của KH.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">party.*</b></td>
+            <td>Khách hàng, người/nhóm liên quan</td>
+            <td class="mono">get · search · get_ownership_graph · get_related_group</td>
+            <td><code>get_related_group</code> là đầu vào bắt buộc cho kiểm tra giới hạn cấp TD.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">collateral.*</b></td>
+            <td>Tài sản bảo đảm &amp; định giá tham chiếu</td>
+            <td class="mono">list · get · estimate_value · request_valuation</td>
+            <td><code>estimate_value</code> = ước tính sơ bộ. <code>request_valuation</code> tạo <code>proposed_action</code> chuyển Phòng Thẩm định giá.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">creditmemo.*</b></td>
+            <td>Tờ trình thẩm định theo mẫu</td>
+            <td class="mono">create_draft · get · update_section · list_versions · get_diff · attach_to_case</td>
+            <td>Có phiên bản. Mục "Kết luận" khoá ghi với Agent — chỉ con người điền.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">workflow.*</b></td>
+            <td>Đầu việc, yêu cầu bổ sung, chuyển bước</td>
+            <td class="mono">list_tasks · create_tasks · update_task · propose · request_document</td>
+            <td><code>propose</code> và <code>request_document</code> luôn qua Approval Broker. Không tự chuyển bước hồ sơ.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">notify.*</b></td>
+            <td>Thông báo trong quy trình</td>
+            <td class="mono">send · list_recipients</td>
+            <td>Chỉ gửi nội bộ (RM, thẩm định, phê duyệt). Không gửi khách hàng.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">audit.*</b></td>
+            <td>Tra cứu vết hoạt động của chính Agent</td>
+            <td class="mono">list_actions · get_trace</td>
+            <td>Chỉ đọc. Giúp Agent tự kiểm tra "đã làm gì" khi tiếp tục hồ sơ.</td>
+          </tr>
+          <tr>
+            <td><b class="mono">compliance.*</b></td>
+            <td>Chính sách &amp; tuân thủ — <span class="tag w">module riêng</span></td>
+            <td class="mono">evaluate · check_limit · check_authority · check_credit_policy · screen_watchlist · explain_rule · get_policy_version</td>
+            <td>Xem mục 06. Là chốt chặn duy nhất cho mọi nội dung tín dụng.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ COMPLIANCE ============ -->
+  <section id="compliance">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>Module Tuân thủ (Compliance MCP)</h2>
+      <p class="lead">Toàn bộ phần liên quan chính sách — nội bộ và quy định — được gom vào một module MCP tool riêng.
+        Agent không đọc và tự diễn giải văn bản chính sách; Agent <b>hỏi module</b> và nhận về phán quyết kèm trích dẫn.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:17px;margin-bottom:10px">Vì sao tách riêng</h3>
+      <ul>
+        <li><b>Một điểm chốt chặn (single choke point).</b> Mọi đề xuất cấp tín dụng, cấu trúc khoản vay, phân nhóm KH liên
+          quan phải đi qua <code>compliance.evaluate(...)</code> trước khi vào tờ trình.</li>
+        <li><b>Policy-as-code.</b> Chính sách được mã hoá thành bảng quyết định (decision table) / quy tắc khai báo, có
+          <b>phiên bản và hiệu lực theo ngày</b> — tách khỏi mã nghiệp vụ và khỏi prompt của Agent.</li>
+        <li><b>Nhất quán &amp; kiểm toán được.</b> Cùng một hồ sơ, cùng một ngày hiệu lực → cùng một phán quyết, tái hiện được
+          khi thanh tra.</li>
+        <li><b>Cập nhật không đụng Agent.</b> Sửa Thông tư, đổi khẩu vị rủi ro ngành → cập nhật trong module, Agent không
+          cần triển khai lại.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:17px;margin-bottom:10px">Phạm vi bao phủ</h3>
+      <p>
+        <span class="tag">Giới hạn cấp TD 1 khách hàng / 1 nhóm KH liên quan</span>
+        <span class="tag">Giới hạn theo nhóm KH &amp; người có liên quan</span>
+        <span class="tag">Tỷ lệ bảo đảm an toàn</span>
+        <span class="tag">Phân loại nợ &amp; trích lập dự phòng</span>
+        <span class="tag">Giao dịch với người có liên quan / xung đột lợi ích</span>
+        <span class="tag">Ma trận thẩm quyền phê duyệt nội bộ</span>
+        <span class="tag">Khẩu vị rủi ro &amp; room theo ngành</span>
+        <span class="tag">Điều kiện &amp; điều khoản sản phẩm tín dụng</span>
+        <span class="tag">DSCR / LTV / đòn bẩy tối thiểu theo chính sách</span>
+        <span class="tag">AML/CFT &amp; sàng lọc danh sách cảnh báo, cấm vận</span>
+        <span class="tag">Danh sách hạn chế / dừng cấp tín dụng nội bộ</span>
+        <span class="tag">Mục đích vay bị cấm / hạn chế</span>
+      </p>
+      <div class="callout-box">
+        Ngưỡng cụ thể (ví dụ giới hạn theo % vốn tự có, DSCR tối thiểu) là tham số cấu hình trong module, tham chiếu
+        văn bản pháp lý hiện hành và chính sách tín dụng nội bộ. Prototype không cố định con số — mọi giá trị hiển thị ở
+        các bản mock là minh hoạ.
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:8px">Tool trong module</h3>
+        <ul style="font-size:12.5px">
+          <li><code>compliance.evaluate(proposal)</code> — chấm toàn diện một phương án khoản vay.</li>
+          <li><code>compliance.check_limit(borrower, group, amount)</code> — giới hạn 1 KH / nhóm liên quan / room ngành.</li>
+          <li><code>compliance.check_authority(proposal)</code> — cấp nào đủ thẩm quyền phê duyệt.</li>
+          <li><code>compliance.check_credit_policy(metrics)</code> — DSCR, LTV, đòn bẩy, phân loại nợ.</li>
+          <li><code>compliance.screen_watchlist(parties)</code> — AML/CFT, cảnh báo, cấm vận.</li>
+          <li><code>compliance.check_purpose(purpose)</code> — mục đích vay hợp lệ.</li>
+          <li><code>compliance.explain_rule(rule_id)</code> — nguyên văn quy định + nguồn.</li>
+          <li><code>compliance.get_policy_version(as_of)</code> — bộ chính sách hiệu lực tại ngày.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:8px">Kết quả chuẩn hoá</h3>
+<pre><span class="c">// compliance.evaluate → Finding[]</span>
+{
+  <span class="k">decision</span>: <span class="s">"review"</span>,   <span class="c">// pass | fail | review</span>
+  <span class="k">rule_id</span>:  <span class="s">"INT-AUTH-014"</span>,
+  <span class="k">rule_version</span>: <span class="s">"2026-06-01"</span>,
+  <span class="k">severity</span>: <span class="s">"high"</span>,
+  <span class="k">rationale</span>: <span class="s">"NQ HĐQT duyệt 20 tỷ &lt; đề nghị 25 tỷ"</span>,
+  <span class="k">citations</span>: [
+    { <span class="k">source</span>: <span class="s">"Điều lệ cty, Đ.32"</span>, <span class="k">ref</span>: <span class="s">"doc_884/ p3"</span> },
+    { <span class="k">source</span>: <span class="s">"Chính sách TD nội bộ 4.2"</span> }
+  ],
+  <span class="k">remediation</span>: <span class="s">"Yêu cầu NQ HĐQT bổ sung cho 25 tỷ"</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:6px">Ví dụ một lượt gọi có chèn kiểm tra tuân thủ</h3>
+<pre><span class="c">1. Agent  →  Gateway   spreading.compute_ratios(case_id)          </span><span class="k">// đọc</span>
+<span class="c">2. Agent  →  Gateway   party.get_related_group(borrower_id)       </span><span class="k">// đọc</span>
+<span class="c">3. Agent  →  Compliance compliance.evaluate({                     </span>
+             amount: 25e9, tenor_m: 12, dscr: 1.25,
+             collateral_value: 40e9, related_group: [...] })
+<span class="c">   Compliance → Agent   [ {decision:"review", rule_id:"INT-AUTH-014", ...},</span>
+<span class="c">                          {decision:"pass",   rule_id:"LIM-SBL-001",  ...} ]</span>
+<span class="c">4. Agent  →  Gateway   creditmemo.update_section(memo_id,</span>
+             "compliance", findings)                <span class="k">// ghi, có source_refs</span>
+<span class="c">5. Agent  →  Gateway   workflow.propose({                          </span>
+             type:"request_document",
+             item:"NQ HĐQT bổ sung 25 tỷ" })          <span class="k">// → hàng đợi duyệt</span>
+<span class="c">   Gateway  → audit    ghi trace: agent_id, on_behalf_of, rule_ids, ts</span></pre>
+    </div>
+  </section>
+
+  <!-- ============ WIRING ============ -->
+  <section id="wire">
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>Sơ đồ kết nối Agent ⇄ Tool</h2>
+      <p class="lead">Agent chỉ có <b>một kết nối</b> — tới MCP Gateway của LOS. Gateway phân phối lệnh gọi tới từng
+        module tool nghiệp vụ và tới Module Tuân thủ. Không có đường tắt: mọi thứ đi qua Gateway để được xác thực,
+        phân quyền và ghi vết.</p>
+    </div>
+
+    <div class="wire-scroll">
+      <svg viewBox="0 0 880 700" role="img" aria-label="Sơ đồ kết nối giữa Agent, MCP Gateway, các module tool nghiệp vụ và Module Tuân thủ">
+        <defs>
+          <marker id="ahm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--text-muted)"/></marker>
+          <marker id="ahb" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--border-strong)"/></marker>
+          <marker id="ahg" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--gold)"/></marker>
+        </defs>
+
+        <!-- connectors: gateway hub -> business nodes -->
+        <g stroke="var(--border-strong)" stroke-width="1.4" opacity="0.8" fill="none">
+          <path d="M410 370 C 440 370, 445 65,  470 65"  marker-end="url(#ahb)"/>
+          <path d="M410 370 C 440 370, 445 115, 470 115" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 440 370, 445 165, 470 165" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 440 370, 445 215, 470 215" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 435 370, 445 265, 470 265" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 435 370, 445 315, 470 315" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 440 370, 445 365, 470 365" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 440 370, 445 415, 470 415" marker-end="url(#ahb)"/>
+          <path d="M410 370 C 440 370, 445 465, 470 465" marker-end="url(#ahb)"/>
+        </g>
+        <!-- connector: gateway hub -> compliance -->
+        <path d="M410 370 C 445 370, 450 565, 470 565" stroke="var(--gold)" stroke-width="2.2" fill="none" marker-end="url(#ahg)"/>
+        <circle cx="410" cy="370" r="4" fill="var(--text-muted)"/>
+
+        <!-- main link agent <-> gateway -->
+        <path d="M180 370 L246 370" stroke="var(--text-muted)" stroke-width="3" fill="none" marker-start="url(#ahm)" marker-end="url(#ahm)"/>
+
+        <!-- Agent -->
+        <rect x="20" y="315" width="160" height="110" rx="12" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="100" y="352" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)">Trợ lý Thẩm định</text>
+        <text x="100" y="372" text-anchor="middle" font-size="11" fill="var(--text-muted)">Planner · Orchestrator</text>
+        <text x="100" y="389" text-anchor="middle" font-size="11" fill="var(--text-muted)">Bộ nhớ hồ sơ</text>
+        <text x="100" y="406" text-anchor="middle" font-size="11" font-family="'IBM Plex Mono', monospace" fill="var(--accent-ink)">MCP Client</text>
+
+        <!-- Gateway -->
+        <rect x="250" y="40" width="160" height="620" rx="12" fill="var(--surface-2)" stroke="var(--border-strong)" stroke-width="1.5"/>
+        <text x="330" y="66" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text)">LOS MCP Gateway</text>
+        <g font-size="11" fill="var(--text-muted)">
+          <text x="266" y="98">· AuthN / AuthZ</text>
+          <text x="266" y="120">· danh tính kép (on-behalf-of)</text>
+          <text x="266" y="142">· Scope read / write</text>
+          <text x="266" y="164">· Rate limit</text>
+          <text x="266" y="186">· Approval Broker</text>
+          <text x="266" y="208">· Audit trace (bất biến)</text>
+          <text x="266" y="230">· Schema Registry</text>
+        </g>
+        <text x="330" y="330" text-anchor="middle" font-size="10.5" font-style="italic" fill="var(--text-muted)">mọi lệnh gọi đi qua đây</text>
+
+        <!-- Business tools header -->
+        <text x="470" y="34" font-size="11" font-weight="600" letter-spacing="0.08em" fill="var(--text-muted)">BỘ TOOL NGHIỆP VỤ · LOS</text>
+
+        <!-- Business nodes -->
+        <g>
+          <g><rect x="470" y="44"  width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="62"  font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">document.*</text><text x="482" y="78"  font-size="10.5" fill="var(--text-muted)">list · classify · extract (trích xuất trường + source_refs) · compare</text></g>
+          <g><rect x="470" y="94"  width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="112" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">spreading.*</text><text x="482" y="128" font-size="10.5" fill="var(--text-muted)">normalize · get_statement · compute_ratios · simulate_scenario</text></g>
+          <g><rect x="470" y="144" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="162" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">bureau.*</text><text x="482" y="178" font-size="10.5" fill="var(--text-muted)">get_cic_report · get_debt_group · list_outstanding</text></g>
+          <g><rect x="470" y="194" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="212" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">party.*</text><text x="482" y="228" font-size="10.5" fill="var(--text-muted)">get · search · get_ownership_graph · get_related_group</text></g>
+          <g><rect x="470" y="244" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="262" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">collateral.*</text><text x="482" y="278" font-size="10.5" fill="var(--text-muted)">list · get · estimate_value · request_valuation</text></g>
+          <g><rect x="470" y="294" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="312" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">creditmemo.*</text><text x="482" y="328" font-size="10.5" fill="var(--text-muted)">create_draft · update_section · list_versions · get_diff</text></g>
+          <g><rect x="470" y="344" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="362" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">workflow.*</text><text x="482" y="378" font-size="10.5" fill="var(--text-muted)">list_tasks · create_tasks · update_task · propose · request_document</text></g>
+          <g><rect x="470" y="394" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="412" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">datastore.*</text><text x="482" y="428" font-size="10.5" fill="var(--text-muted)">get · get_collection · query · create · update</text></g>
+          <g><rect x="470" y="444" width="340" height="42" rx="7" fill="var(--bg)" stroke="var(--border-strong)"/><text x="482" y="462" font-size="12" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--text)">notify.*</text><text x="482" y="478" font-size="10.5" fill="var(--text-muted)">send (chỉ nội bộ: RM · thẩm định · phê duyệt)</text></g>
+        </g>
+
+        <!-- Compliance panel -->
+        <rect x="470" y="506" width="340" height="176" rx="9" fill="var(--gold-soft)" stroke="var(--gold)" stroke-width="1.6"/>
+        <text x="640" y="528" text-anchor="middle" font-size="12.5" font-weight="600" font-family="'IBM Plex Mono', monospace" fill="var(--gold)">compliance.*</text>
+        <text x="640" y="544" text-anchor="middle" font-size="10" fill="var(--text-muted)">Module Tuân thủ — chốt chặn chính sách</text>
+        <g font-size="10.5" fill="var(--text)">
+          <text x="484" y="566">· evaluate(proposal)</text>
+          <text x="484" y="584">· check_limit · check_authority</text>
+          <text x="484" y="602">· check_credit_policy (DSCR · LTV · đòn bẩy)</text>
+          <text x="484" y="620">· screen_watchlist · check_purpose</text>
+          <text x="484" y="638">· explain_rule · get_policy_version</text>
+        </g>
+        <text x="484" y="662" font-size="10.5" font-weight="600" fill="var(--gold)">→ pass / fail / review · rule_id · trích dẫn nguồn</text>
+      </svg>
+    </div>
+    <div class="wire-legend">
+      <span><i style="border-color:var(--text-muted)"></i>Agent ⇄ Gateway — mọi tool call &amp; kết quả</span>
+      <span><i style="border-color:var(--border-strong)"></i>Gateway → tool nghiệp vụ</span>
+      <span><i style="border-color:var(--gold)"></i>Gateway → Module Tuân thủ (bắt buộc với nội dung tín dụng)</span>
+    </div>
+  </section>
+
+  <!-- ============ FS FLOW ============ -->
+  <section id="fs-flow">
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <h2>Luồng minh hoạ: Phân tích báo cáo tài chính</h2>
+      <p class="lead">Đầu việc "Phân tích chỉ số tài chính &amp; khả năng trả nợ" (task <span class="mono">T-02</span>) của hồ sơ
+        <span class="mono">LOS-2026-04871</span>. Từng lệnh gọi tool, dữ liệu trả về, và điểm chèn kiểm tra chính sách.
+        Các tool do Agent tự chọn theo playbook.</p>
+    </div>
+
+    <div class="pstrip">
+      <div class="ps"><b>P1</b>Ngữ cảnh &amp; tài liệu</div>
+      <div class="ps"><b>P2</b>Chuẩn hoá (spreading)</div>
+      <div class="ps"><b>P3</b>Tính toán &amp; phân tích</div>
+      <div class="ps"><b>P4</b>Kiểm tra chính sách</div>
+      <div class="ps"><b>P5</b>Ghi kết quả &amp; đề xuất</div>
+    </div>
+
+    <div class="card">
+
+      <div class="phase">
+        <div class="phase-h"><span class="pn">P1</span><h4>Lấy ngữ cảnh hồ sơ &amp; tài liệu</h4></div>
+        <div class="seq">
+          <div class="call">
+            <div class="dir">Agent → LOS · datastore</div>
+            <div class="fn">datastore.get(case_id="LOS-2026-04871")</div>
+            <div class="ret">bên vay, đề nghị 25,0 tỷ / 12 tháng, ngành chế biến nông sản, <span class="mono">party_id</span>, <span class="mono">memo_id</span></div>
+            <div class="rem">Lấy khung ngữ cảnh trước khi phân tích.</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · datastore</div>
+            <div class="fn">datastore.get_collection(case_id, "tasks")</div>
+            <div class="ret">đầu việc <b>T-02</b> "Phân tích chỉ số &amp; khả năng trả nợ" — Agent nhận đúng phần việc được giao</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · document</div>
+            <div class="fn">document.list(case_id, type="financial_statement")</div>
+            <div class="ret">3 tài liệu: BCTC kiểm toán 2023 &amp; 2024; BCTC 2025 (bản nội bộ)</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · document</div>
+            <div class="fn">document.classify(doc_ids=[…])</div>
+            <div class="ret">xác nhận loại / kỳ / đơn vị tiền; cờ <span class="mono">audited=false</span> cho kỳ 2025</div>
+            <div class="rem">Cờ "chưa kiểm toán" được Agent đưa vào lưu ý cho chuyên viên.</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · document · (×3 tài liệu)</div>
+            <div class="fn">document.extract(doc_id, schema="bctc_vas_full")</div>
+            <div class="ret">CĐKT, KQKD, LCTT — 148 dòng khoản mục, mỗi số kèm <span class="mono">source_refs</span> (file + trang)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><span class="pn">P2</span><h4>Chuẩn hoá &amp; đối chiếu</h4></div>
+        <div class="seq">
+          <div class="call">
+            <div class="dir">Agent → LOS · spreading</div>
+            <div class="fn">spreading.normalize(statements=[…])</div>
+            <div class="ret">ánh xạ 148 dòng về khung khoản mục chuẩn NH; <b>2 khoản mục lệch</b> cần đối chiếu</div>
+            <div class="rem">Nổi bật: "phải thu khác" +6,1 tỷ trong Q4/2025, thuyết minh chưa rõ đối tượng.</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · document</div>
+            <div class="fn">document.compare(a="bctc_2025_internal", b="to_khai_qtt_tndn")</div>
+            <div class="ret">doanh thu &amp; LNST khớp trong ngưỡng; chênh nhỏ ở nhóm chi phí khác</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · spreading</div>
+            <div class="fn">spreading.get_statement(case_id, period="2023..2025")</div>
+            <div class="ret">bảng 3 kỳ đã chuẩn hoá: DT thuần 2025 = 412,7 tỷ (+11,3%/năm), LNST = 18,4 tỷ</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><span class="pn">P3</span><h4>Tính toán chỉ số &amp; phân tích</h4></div>
+        <div class="seq">
+          <div class="call">
+            <div class="dir">Agent → LOS · spreading</div>
+            <div class="fn">spreading.compute_ratios(case_id)</div>
+            <div class="ret">thanh khoản hiện hành 1,38 · nợ vay/VCSH 1,72 · vòng quay HTK 5,1 · kỳ thu tiền 58 ngày · biên LN gộp 14,7% · <b>DSCR 1,25</b></div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · datastore</div>
+            <div class="fn">datastore.query("industry_benchmarks", filter={sector:"agri_processing"})</div>
+            <div class="ret">đòn bẩy trung bình ngành ≈ 1,5 lần → đòn bẩy bên vay nhỉnh hơn ngành</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · spreading</div>
+            <div class="fn">spreading.simulate_scenario(case_id, shocks=[gross_margin −2pp, DSO 58→75])</div>
+            <div class="ret">biên LN gộp −2 điểm % → <b>DSCR 1,08</b> · kỳ thu tiền 75 ngày → DSCR 1,16</div>
+            <div class="rem">DSCR nhạy với biên lợi nhuận — xuống dưới ngưỡng ở kịch bản bất lợi.</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · party</div>
+            <div class="fn">party.get_ownership_graph(party_id)</div>
+            <div class="ret">sơ đồ sở hữu: TGĐ &amp; người có liên quan; <b>1 công ty do em ruột TGĐ sở hữu</b></div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · party</div>
+            <div class="fn">party.get_related_group(party_id)</div>
+            <div class="ret">nhóm KH liên quan — <b>chưa đầy đủ</b> (thiếu danh sách công ty liên kết bên vay tự khai)</div>
+            <div class="rem">Đủ để phân tích, chưa đủ để chốt giới hạn cấp tín dụng.</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · bureau</div>
+            <div class="fn">bureau.get_cic_report(party_id, purpose="credit_appraisal")</div>
+            <div class="ret">nhóm 1 · tổng dư nợ 67,4 tỷ tại 3 TCTD · không nợ quá hạn 12 tháng gần nhất</div>
+          </div>
+          <div class="call" style="border-style:dashed">
+            <div class="dir">Agent · phân tích nội bộ (không gọi tool)</div>
+            <div class="fn">phát hiện 2 điểm bất thường</div>
+            <div class="ret">(1) cho vay 4,2 tỷ lãi suất 0% cho công ty bên liên quan; (2) DT Q4 +34% nhưng dòng tiền HĐKD âm — do tăng mạnh phải thu</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><span class="pn">P4</span><h4>Kiểm tra chính sách &amp; tuân thủ</h4></div>
+        <div class="seq">
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.get_policy_version(as_of="2026-08-28")</div>
+            <div class="ret">khoá bộ chính sách hiệu lực tại ngày thẩm định — mọi phán quyết sau đây gắn với phiên bản này</div>
+          </div>
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.check_credit_policy({dscr:1.25, current_ratio:1.38, debt_to_equity:1.72, gross_margin:0.147, worst_case_dscr:1.08})</div>
+            <div class="ret"><b>DSCR cơ sở: PASS</b> (≥ ngưỡng chính sách) · <b>đòn bẩy: REVIEW</b> · <b>DSCR kịch bản xấu &lt; ngưỡng</b> → khuyến nghị thêm điều kiện duy trì biên LN gộp ≥ 13%</div>
+          </div>
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.check_limit({borrower, related_group, existing_debt:67.4e9, proposed:25e9, sector:"agri_processing"})</div>
+            <div class="ret"><b>decision: REVIEW</b> — thiếu danh sách công ty liên kết để tính đủ giới hạn nhóm KH liên quan; room ngành còn dư</div>
+            <div class="rem">→ Agent sẽ sinh yêu cầu bổ sung hồ sơ ở P5.</div>
+          </div>
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.evaluate({item:"related_party_transaction", amount:4.2e9, rate:0, term:null, counterparty:"sibling_owned_entity"})</div>
+            <div class="ret"><b>decision: REVIEW</b> · <span class="mono">rule_id RELPARTY-002</span> · severity <b>high</b> · rationale: cho vay bên liên quan lãi suất 0%, kỳ hạn không rõ · remediation: yêu cầu giải trình + đưa vào đánh giá dòng tiền</div>
+          </div>
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.evaluate({item:"revenue_cashflow_divergence", revenue_yoy:0.34, ocf:"negative", driver:"receivables"})</div>
+            <div class="ret"><b>decision: REVIEW</b> · <span class="mono">rule_id EWS-014</span> (cảnh báo sớm) · yêu cầu phỏng vấn KH + kiểm tra thực địa trước khi kết luận</div>
+          </div>
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.check_authority({proposed:25e9, recommended:22e9})</div>
+            <div class="ret">cấp phê duyệt: Hội đồng tín dụng khu vực · lưu ý <span class="mono">rule_id INT-AUTH-014</span>: NQ HĐQT bên vay chỉ duyệt 20 tỷ &lt; mức đề nghị</div>
+          </div>
+          <div class="call comp">
+            <div class="dir">Agent → Compliance</div>
+            <div class="fn">compliance.explain_rule("RELPARTY-002")</div>
+            <div class="ret">nguyên văn quy định nội bộ + tham chiếu văn bản pháp lý — chèn vào mục "Tuân thủ" của tờ trình</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><span class="pn">P5</span><h4>Ghi kết quả &amp; đề xuất hành động</h4></div>
+        <div class="seq">
+          <div class="call">
+            <div class="dir">Agent → LOS · creditmemo</div>
+            <div class="fn">creditmemo.update_section(memo_id, "financial_analysis", {…})</div>
+            <div class="ret">bảng chỉ số, phân tích DSCR &amp; độ nhạy, đối chiếu ngành — kèm <span class="mono">source_refs</span></div>
+            <div class="rem">Mục "Kết luận &amp; ý kiến đề xuất" vẫn khoá — chỉ chuyên viên điền.</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · creditmemo</div>
+            <div class="fn">creditmemo.update_section(memo_id, "compliance", findings[])</div>
+            <div class="ret">5 finding: 1 pass · 4 review — mỗi finding có <span class="mono">rule_id</span>, phiên bản chính sách, trích dẫn</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · creditmemo</div>
+            <div class="fn">creditmemo.update_section(memo_id, "proposed_structure", {amount:22e9, tenor_m:12, rate:"sàn + 3,2%", conditions:4})</div>
+            <div class="ret">đề xuất cấp 22,0 tỷ (thấp hơn đề nghị) do giới hạn DSCR &amp; giá trị TSBĐ ước tính</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · workflow → Approval Broker</div>
+            <div class="fn">workflow.propose({type:"request_document", items:[BCTC kiểm toán 2025, DS công ty con/liên kết, NQ HĐQT bổ sung 25 tỷ, giải trình khoản cho vay bên liên quan]})</div>
+            <div class="ret">4 đề xuất vào hàng đợi phê duyệt của chuyên viên — <b>không tự gửi ra ngoài</b></div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · workflow</div>
+            <div class="fn">workflow.update_task("T-02", status="done", confidence=0.88)</div>
+            <div class="ret">đầu việc phân tích chỉ số hoàn tất, độ tin cậy 88%</div>
+          </div>
+          <div class="call">
+            <div class="dir">Agent → LOS · notify</div>
+            <div class="fn">notify.send(role="credit_officer", case_id)</div>
+            <div class="ret">báo chuyên viên thẩm định: kết quả sẵn sàng, 3 nội dung cần xác nhận</div>
+          </div>
+          <div class="call">
+            <div class="dir">LOS · Gateway (tự động)</div>
+            <div class="fn">audit.* — ghi trace toàn bộ lệnh gọi</div>
+            <div class="ret"><span class="mono">agent_id</span>, <span class="mono">on_behalf_of</span>, tham số, kết quả, các <span class="mono">rule_id</span> đã áp dụng, dấu thời gian — bất biến</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="callout-box">
+      <b>Tool chạm tới trong luồng này:</b>
+      <span class="tag">datastore.get / get_collection / query</span>
+      <span class="tag">document.list / classify / extract / compare</span>
+      <span class="tag">spreading.normalize / get_statement / compute_ratios / simulate_scenario</span>
+      <span class="tag">party.get_ownership_graph / get_related_group</span>
+      <span class="tag">bureau.get_cic_report</span>
+      <span class="tag">creditmemo.update_section</span>
+      <span class="tag">workflow.propose / update_task</span>
+      <span class="tag">notify.send</span>
+      <span class="tag w">compliance.get_policy_version / check_credit_policy / check_limit / evaluate / check_authority / explain_rule</span>
+    </div>
+  </section>
+
+  <!-- ============ BACKLOG ============ -->
+  <section id="backlog">
+    <div class="sec-head">
+      <span class="sec-num">09</span>
+      <h2>Việc hệ thống LOS phải làm</h2>
+      <p class="lead">Danh sách hạng mục kỹ thuật để LOS sẵn sàng cho Agent kết nối.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:6px">A · Lớp tool &amp; cổng</h4>
+        <ul class="chk">
+          <li>Dựng MCP Gateway: đăng ký tool, mô tả schema, khám phá năng lực.</li>
+          <li>Chuẩn hoá bộ động từ dùng chung cho mọi module.</li>
+          <li>Định nghĩa &amp; hiện thực các module: document, spreading, bureau, party, collateral, creditmemo, workflow, notify, datastore, audit.</li>
+          <li>Idempotency key + xử lý retry cho mọi lệnh ghi.</li>
+          <li>Schema Registry + chính sách phiên bản, tương thích ngược.</li>
+          <li>Bộ mã lỗi phân loại, tài liệu hoá cho phía Agent.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:6px">B · Module Tuân thủ</h4>
+        <ul class="chk">
+          <li>CSDL chính sách: decision table, quy tắc khai báo, hiệu lực theo ngày.</li>
+          <li>Bộ máy đánh giá trả kết quả chuẩn hoá (decision / rule_id / citations).</li>
+          <li>Số hoá &amp; ánh xạ văn bản pháp lý + chính sách nội bộ thành rule có <code>rule_id</code>.</li>
+          <li>Quy trình cập nhật chính sách + kiểm thử hồi quy khi đổi rule.</li>
+          <li><code>explain_rule</code> trả nguyên văn + nguồn.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:6px">C · Bảo mật &amp; phân quyền</h4>
+        <ul class="chk">
+          <li>Danh tính Agent (service identity) + cơ chế "on-behalf-of".</li>
+          <li>Mô hình scope: tách read/write, phân quyền theo module &amp; theo hành động.</li>
+          <li>Rate limit &amp; hạn mức lệnh; phát hiện hành vi bất thường.</li>
+          <li>Che dữ liệu nhạy cảm (PII, MST đầy đủ) theo nhu-cầu-biết.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:6px">D · Phê duyệt &amp; con người</h4>
+        <ul class="chk">
+          <li>Approval Broker + hàng đợi phê duyệt trong giao diện LOS.</li>
+          <li>Kiểu <code>proposed_action</code> cho mọi hành động tác động phụ.</li>
+          <li>Panel Trợ lý trong hồ sơ (đã có prototype): trạng thái, việc cần xác nhận, tờ trình nháp.</li>
+          <li>Khoá ghi các mục do con người sở hữu (kết luận tờ trình).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:6px">E · Kiểm toán &amp; quan sát</h4>
+        <ul class="chk">
+          <li>Audit trace bất biến: tham số, kết quả, rule_ids, dấu thời gian.</li>
+          <li>Truy vết nguồn: mọi số liệu → file + trang.</li>
+          <li>Bảng theo dõi: thời gian tiết kiệm, tỷ lệ trùng khớp chuyên gia, tỷ lệ đề xuất bị từ chối.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="font-size:14px;margin-bottom:6px">F · Sự kiện &amp; vòng phản hồi</h4>
+        <ul class="chk">
+          <li>Webhook/event khi hồ sơ đổi bước, tài liệu mới, yêu cầu bổ sung được đáp ứng.</li>
+          <li><code>creditmemo.get_diff</code> giữa bản nháp và bản cuối.</li>
+          <li>Kho phản hồi: đẩy khác biệt + nhận xét chuyên viên về cho Agent học.</li>
+          <li>Bộ eval hồi quy hồ sơ mẫu trước mỗi lần nâng cấp Agent.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REFERENCES ============ -->
+  <section id="refs">
+    <div class="sec-head">
+      <span class="sec-num">10</span>
+      <h2>Tham khảo &amp; nghiên cứu</h2>
+      <p class="lead">Các ngân hàng và nền tảng cho vay đang làm theo concept tương tự: mở lớp tool/MCP cho agent, tách
+        chính sách thành policy-as-code, giữ con người ở vòng quyết định.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:6px">Nền tảng cho vay mở lớp tool/MCP cho AI agent</h3>
+
+      <div class="ref">
+        <span class="r-t">Blend — "Autopilot MCP Server"</span>
+        <span class="r-src">helpnetsecurity.com · nationalmortgageprofessional.com</span>
+        <span class="r-note">Mở nền tảng khởi tạo khoản vay cho agent bên thứ ba qua <b>một giao diện MCP duy nhất</b>,
+          bao trùm từ tín dụng &amp; thẩm định đến tuân thủ, công bố thông tin, đóng khoản vay. Có kiểm soát &amp; audit
+          trail cho mọi hành động của agent; hành động nhạy cảm (khoá lãi suất, kéo tín dụng, công bố) <b>phải được
+          người cho vay cấp phép trước khi thực thi</b> — trùng với mô hình Approval Broker ở đây.</span>
+        <a href="https://www.helpnetsecurity.com/2026/05/04/blend-autopilot-mcp-brings-ai-agent-orchestration-to-lending-platforms/">helpnetsecurity.com/2026/05/04/blend-autopilot-mcp-brings-ai-agent-orchestration-to-lending-platforms</a>
+        <a href="https://nationalmortgageprofessional.com/news/blend-opens-lending-platform-ai-agents-new-mcp-server">nationalmortgageprofessional.com/news/blend-opens-lending-platform-ai-agents-new-mcp-server</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">nCino — "Mortgage MCP"</span>
+        <span class="r-src">cfotech.news</span>
+        <span class="r-note">Dùng Model Context Protocol kết nối AI agent với các nền tảng bên ngoài, cho nhân viên dùng
+          <b>ngôn ngữ tự nhiên</b> để lấy thông tin / hoàn tất tác vụ vốn phải qua nhiều màn hình trong LOS và POS — minh
+          hoạ rõ nguyên tắc "tool theo năng lực, không theo màn hình".</span>
+        <a href="https://cfotech.news/story/ncino-launches-mortgage-mcp-for-lenders-ai-agents">cfotech.news/story/ncino-launches-mortgage-mcp-for-lenders-ai-agents</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">nCino — Agentic AI in Banking</span>
+        <span class="r-src">ncino.com/blog</span>
+        <span class="r-note">Quan điểm nhà cung cấp core lending về agent tự chủ trong ngân hàng, phân tầng mức độ tự chủ
+          và vai trò giám sát của con người.</span>
+        <a href="https://www.ncino.com/blog/agentic-ai-banking-revolution-autonomous-intelligence">ncino.com/blog/agentic-ai-banking-revolution-autonomous-intelligence</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:6px">Agentic AI trong quy trình tín dụng doanh nghiệp</h3>
+
+      <div class="ref">
+        <span class="r-t">McKinsey — "The future is agentic: AI's role in the end-to-end corporate credit process"</span>
+        <span class="r-src">mckinsey.com · Risk &amp; Resilience</span>
+        <span class="r-note">Mô hình <b>đa agent</b> cho quy trình tín dụng doanh nghiệp: agent trích xuất tài liệu, agent
+          spreading, agent soạn memo. Pilot credit-memo đa agent tại một ngân hàng Mỹ (2025): <b>+30% tốc độ xử lý tín
+          dụng</b>, <b>+20–60% năng suất</b> chuyên viên. Mọi con số trong memo <b>link về đúng tài liệu &amp; trang</b>.</span>
+        <a href="https://www.mckinsey.com/capabilities/risk-and-resilience/our-insights/the-future-is-agentic-ais-role-in-the-end-to-end-corporate-credit-process">mckinsey.com/capabilities/risk-and-resilience/our-insights/the-future-is-agentic-ais-role-in-the-end-to-end-corporate-credit-process</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">UK Finance — "From data to decision: how agentic AI is revolutionising lending workflows"</span>
+        <span class="r-src">ukfinance.org.uk</span>
+        <span class="r-note">Góc nhìn hiệp hội ngân hàng Anh về agent trong luồng cho vay, nhấn mạnh quản trị, minh bạch
+          quyết định và giữ trách nhiệm ở con người.</span>
+        <a href="https://www.ukfinance.org.uk/news-and-insight/blog/data-decision-how-agentic-ai-revolutionising-lending-workflows">ukfinance.org.uk/news-and-insight/blog/data-decision-how-agentic-ai-revolutionising-lending-workflows</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">Azilen — "Agentic AI for Credit Memo Automation: An End-to-End Guide"</span>
+        <span class="r-src">azilen.com/blog</span>
+        <span class="r-note">Chi tiết kiến trúc phân rã theo agent/mục memo (Borrower Overview, Financial Analysis, Risk
+          Assessment, Covenant Compliance, Recommendations) — tham chiếu tốt khi thiết kế <code>creditmemo.*</code>.</span>
+        <a href="https://www.azilen.com/blog/agentic-ai-for-credit-memo-automation/">azilen.com/blog/agentic-ai-for-credit-memo-automation</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">Uptiq — "7 AI Agent Use Cases in Commercial Lending" &amp; "AI Credit Memo Generation"</span>
+        <span class="r-src">uptiq.ai/blogs</span>
+        <span class="r-note">Danh mục use case theo bước quy trình; hữu ích để đối chiếu phạm vi đầu việc của Trợ lý.</span>
+        <a href="https://www.uptiq.ai/blogs/7-ai-agent-use-cases-in-commercial-lending-banks-should-deploy-first">uptiq.ai/blogs/7-ai-agent-use-cases-in-commercial-lending-banks-should-deploy-first</a>
+        <a href="https://www.uptiq.ai/blogs/ai-credit-memo-generation-to-speed-up-underwriting">uptiq.ai/blogs/ai-credit-memo-generation-to-speed-up-underwriting</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">V7 Labs — "AI Commercial Loan Underwriting: Enhancing Credit Decisions"</span>
+        <span class="r-src">v7labs.com/blog</span>
+        <span class="r-note">Lớp orchestration quản lý toàn trình từ nạp tài liệu đến kết quả quyết định, tích hợp với LOS
+          và core banking hiện hữu; báo cáo giảm 50–75% thời gian ra quyết định.</span>
+        <a href="https://www.v7labs.com/blog/ai-commercial-loan-underwriting">v7labs.com/blog/ai-commercial-loan-underwriting</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:6px">Policy-as-code &amp; guardrail cho tool call</h3>
+
+      <div class="ref">
+        <span class="r-t">Anthropic — Model Context Protocol</span>
+        <span class="r-src">modelcontextprotocol.io</span>
+        <span class="r-note">Chuẩn mở cho việc agent kết nối hệ thống doanh nghiệp qua giao diện tool thống nhất — nền
+          tảng kỹ thuật cho lớp Gateway của LOS.</span>
+        <a href="https://modelcontextprotocol.io">modelcontextprotocol.io</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">Open Policy Agent (CNCF)</span>
+        <span class="r-src">openpolicyagent.org</span>
+        <span class="r-note">Mô hình tham chiếu cho policy-as-code: quy tắc khai báo đánh giá theo ngữ cảnh yêu cầu. Áp
+          dụng được cho module Tuân thủ và cho việc chấm allow/deny từng tool call.</span>
+        <a href="https://www.openpolicyagent.org">openpolicyagent.org</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">Kyndryl — "How policy as code governs AI agents" · ValidMind — "Policy-as-Code in AI Governance"</span>
+        <span class="r-src">kyndryl.com/insights · validmind.com/blog</span>
+        <span class="r-note">Dịch quy tắc tổ chức &amp; yêu cầu pháp lý thành mã máy đọc được để ràng buộc hành động agent;
+          checkpoint trước mỗi tool call với 3 kết quả <b>allow / deny / quarantine (chờ người xác nhận)</b> — chính là
+          mô hình decision <code>pass / fail / review</code> ở module Tuân thủ.</span>
+        <a href="https://www.kyndryl.com/us/en/insights/articles/2026/03/policy-as-code-agentic-ai">kyndryl.com/us/en/insights/articles/2026/03/policy-as-code-agentic-ai</a>
+        <a href="https://validmind.com/blog/ai-governance-tools-for-autonomous-agents/">validmind.com/blog/ai-governance-tools-for-autonomous-agents</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">Arthur — "AI Agent Compliance Tools for Banks: A Guide"</span>
+        <span class="r-src">arthur.ai</span>
+        <span class="r-note">Tổng quan công cụ giúp ngân hàng tuân thủ khi triển khai agent: giám sát, kiểm toán, kiểm
+          soát hành động ở lớp thực thi.</span>
+        <a href="https://www.arthur.ai/column/ai-agent-compliance-tools-for-banks-a-guide">arthur.ai/column/ai-agent-compliance-tools-for-banks-a-guide</a>
+      </div>
+
+      <div class="ref">
+        <span class="r-t">CCG Catalyst — "Sector Spotlight: AI Agents and Connectors for Banks and Credit Unions"</span>
+        <span class="r-src">ccgcatalyst.com</span>
+        <span class="r-note">Phân tích thị trường về agent &amp; connector cho ngân hàng — bối cảnh vì sao "lớp connector/tool"
+          đang trở thành hạ tầng chuẩn.</span>
+        <a href="https://www.ccgcatalyst.com/thought-leadership/research-snapshot/sector-spotlight-ai-agents-and-connectors-for-banks-and-credit-unions/">ccgcatalyst.com/thought-leadership/research-snapshot/sector-spotlight-ai-agents-and-connectors-for-banks-and-credit-unions</a>
+      </div>
+    </div>
+
+    <div class="callout-box">
+      <b>Ghi chú kiểm chứng:</b> Các số liệu (ví dụ "+30% tốc độ", "50–75% thời gian") trích từ nội dung công khai của
+      các bên nêu trên tại thời điểm tra cứu (09/2026) và nên được xác minh lại từ nguồn gốc trước khi đưa vào tài liệu
+      trình bày chính thức.
+    </div>
+  </section>
+
+</div>
+
+<footer class="note">
+  <div class="disc">
+    <b>Đây là bản prototype minh hoạ khái niệm.</b> Sơ đồ kiến trúc, tên tool và luồng vận hành là đề xuất thiết kế,
+    chưa phải đặc tả kỹ thuật cuối cùng. Mọi số liệu, tên doanh nghiệp và mã hồ sơ trong bộ prototype là hư cấu. Trợ lý
+    Thẩm định thực hiện phần chuẩn bị và phân tích sơ bộ; mọi kết luận cấp tín dụng và quyết định phê duyệt thuộc trách
+    nhiệm của chuyên viên thẩm định và cấp có thẩm quyền của ngân hàng.
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.appbar nav a').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var t = document.querySelector(a.getAttribute('href'));
+      if (!t) return;
+      e.preventDefault();
+      t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+
+</body>
+</html>
