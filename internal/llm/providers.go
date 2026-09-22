@@ -45,7 +45,7 @@ func (p *claudeProvider) Model(ctx context.Context, modelID string, opt Options)
 	if err != nil {
 		return nil, fmt.Errorf("claude provider %q: %w", p.name, err)
 	}
-	return cm, nil
+	return withRetry(cm), nil
 }
 
 // --- OpenAI-compatible ----------------------------------------------------—-
@@ -83,7 +83,7 @@ func (p *openaiProvider) Model(ctx context.Context, modelID string, opt Options)
 	if err != nil {
 		return nil, fmt.Errorf("openai provider %q: %w", p.name, err)
 	}
-	return cm, nil
+	return withRetry(cm), nil
 }
 
 // normalizeOpenAIBaseURL accepts either the API base ("http://host:port/v1") or
@@ -123,5 +123,5 @@ func (p *arkProvider) Model(ctx context.Context, modelID string, opt Options) (m
 	if err != nil {
 		return nil, fmt.Errorf("ark provider %q: %w", p.name, err)
 	}
-	return cm, nil
+	return withRetry(cm), nil
 }
