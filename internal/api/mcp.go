@@ -7,9 +7,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
+	appmcp "github.com/thanhenti/bepilot/agentcore/mcp"
 	"github.com/thanhenti/bepilot/internal/api/dto"
-	"github.com/thanhenti/bepilot/internal/config"
-	appmcp "github.com/thanhenti/bepilot/internal/mcp"
 	"github.com/thanhenti/bepilot/internal/store"
 )
 
@@ -66,7 +65,7 @@ func (h *Handlers) AddMCPServer(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	spec := config.MCPServerSpec{
+	spec := appmcp.ServerSpec{
 		Name:          req.Name,
 		Transport:     req.Transport,
 		Command:       req.Command,
@@ -175,7 +174,7 @@ func findStatus(list []appmcp.Status, name string) (appmcp.Status, bool) {
 }
 
 // specToMap converts a spec to the JSON shape persisted in mcp_servers.spec.
-func specToMap(s config.MCPServerSpec) map[string]any {
+func specToMap(s appmcp.ServerSpec) map[string]any {
 	m := map[string]any{
 		"name":      s.Name,
 		"transport": s.Transport,

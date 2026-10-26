@@ -116,6 +116,161 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/documents/messages": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "The body is an Anthropic Messages request. The last user message carries the files as ` + "`" + `document` + "`" + ` (PDF) or ` + "`" + `image` + "`" + ` content blocks with a base64 ` + "`" + `source` + "`" + `, and the question as ` + "`" + `text` + "`" + ` blocks. Every file is read with docpipe (markdown and OCR text per page), and the agent answers the question with the documents in its context. The response is the same as ` + "`" + `/v1/messages` + "`" + `: with ` + "`" + `stream: true` + "`" + ` (or ` + "`" + `Accept: text/event-stream` + "`" + `) Anthropic SSE frames, preceded by a ` + "`" + `document_parsed` + "`" + ` extension event once the files are read (` + "`" + `ping` + "`" + ` frames keep the stream open while they are); otherwise a single JSON message, plus ` + "`" + `request_id` + "`" + ` and ` + "`" + `documents` + "`" + `.\nThe turn is stored in the session like any other (` + "`" + `metadata.session_id` + "`" + ` continues one), so later ` + "`" + `/v1/messages` + "`" + ` calls on that session can ask about the same documents. The request, the files, what was read and the response are stored (` + "`" + `document_requests` + "`" + `, ` + "`" + `document_files` + "`" + `).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Ask the agent about PDFs and images (streaming or buffered)",
+                "parameters": [
+                    {
+                        "description": "Anthropic Messages request with document / image blocks",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.MessagesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DocumentMessageResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SteeredResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/documents/parse": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Reads one uploaded file (PDF, JPEG, PNG or TIFF) with docpipe: a PDF is rendered page by page, every page is read by TurboOCR and, when a VLM is configured, re-read by it into markdown. Returns the markdown of every page and of the whole document. A page that could not be read carries an ` + "`" + `error` + "`" + ` and the rest still return; when no page can be read the response is ` + "`" + `502` + "`" + `. The request, the file and the result are stored (` + "`" + `document_requests` + "`" + `, ` + "`" + `document_files` + "`" + `).",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Read a PDF or image into markdown",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "PDF or image (JPEG, PNG, TIFF)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ParseDocumentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/mcp/servers": {
             "get": {
                 "security": [
@@ -894,6 +1049,105 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.DocumentInfo": {
+            "type": "object",
+            "properties": {
+                "failed_pages": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "media_type": {
+                    "description": "detected from the content",
+                    "type": "string",
+                    "example": "application/pdf"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "contract.pdf"
+                },
+                "pages": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "example": 482113
+                }
+            }
+        },
+        "dto.DocumentMessageResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.OutputBlock"
+                    }
+                },
+                "documents": {
+                    "description": "bepilot extension",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DocumentInfo"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "request_id": {
+                    "description": "bepilot extension",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "\"assistant\"",
+                    "type": "string"
+                },
+                "session": {
+                    "description": "bepilot extension",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SessionBrief"
+                        }
+                    ]
+                },
+                "stop_reason": {
+                    "type": "string"
+                },
+                "stop_sequence": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"message\"",
+                    "type": "string"
+                },
+                "usage": {
+                    "$ref": "#/definitions/dto.Usage"
+                }
+            }
+        },
+        "dto.DocumentPage": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "set when the page could not be read",
+                    "type": "string"
+                },
+                "markdown": {
+                    "type": "string"
+                },
+                "page_no": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "text": {
+                    "description": "Text is the plain OCR text of the page (only on /v1/documents/messages\nrecords; the parse response leaves it out).",
+                    "type": "string"
+                }
+            }
+        },
         "dto.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -1147,6 +1401,29 @@ const docTemplate = `{
                 "type": {
                     "description": "text | tool_use | tool_result | thinking",
                     "type": "string"
+                }
+            }
+        },
+        "dto.ParseDocumentResponse": {
+            "type": "object",
+            "properties": {
+                "document": {
+                    "$ref": "#/definitions/dto.DocumentInfo"
+                },
+                "markdown": {
+                    "description": "Markdown is every page's markdown, separated by \"\\n\\n---\\n\\n\".",
+                    "type": "string"
+                },
+                "pages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.DocumentPage"
+                    }
+                },
+                "request_id": {
+                    "description": "RequestID is the stored document request (document_requests.id).",
+                    "type": "string",
+                    "example": "6f1c2b6e-0f6a-4b8e-9f0e-0d4d2b7f3a11"
                 }
             }
         },

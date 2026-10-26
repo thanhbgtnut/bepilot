@@ -74,6 +74,76 @@ definitions:
       id:
         type: string
     type: object
+  dto.DocumentInfo:
+    properties:
+      failed_pages:
+        example: 0
+        type: integer
+      media_type:
+        description: detected from the content
+        example: application/pdf
+        type: string
+      name:
+        example: contract.pdf
+        type: string
+      pages:
+        example: 3
+        type: integer
+      size_bytes:
+        example: 482113
+        type: integer
+    type: object
+  dto.DocumentMessageResponse:
+    properties:
+      content:
+        items:
+          $ref: '#/definitions/dto.OutputBlock'
+        type: array
+      documents:
+        description: bepilot extension
+        items:
+          $ref: '#/definitions/dto.DocumentInfo'
+        type: array
+      id:
+        type: string
+      model:
+        type: string
+      request_id:
+        description: bepilot extension
+        type: string
+      role:
+        description: '"assistant"'
+        type: string
+      session:
+        allOf:
+        - $ref: '#/definitions/dto.SessionBrief'
+        description: bepilot extension
+      stop_reason:
+        type: string
+      stop_sequence:
+        type: string
+      type:
+        description: '"message"'
+        type: string
+      usage:
+        $ref: '#/definitions/dto.Usage'
+    type: object
+  dto.DocumentPage:
+    properties:
+      error:
+        description: set when the page could not be read
+        type: string
+      markdown:
+        type: string
+      page_no:
+        example: 1
+        type: integer
+      text:
+        description: |-
+          Text is the plain OCR text of the page (only on /v1/documents/messages
+          records; the parse response leaves it out).
+        type: string
+    type: object
   dto.ErrorResponse:
     properties:
       error:
@@ -248,6 +318,22 @@ definitions:
         type: string
       type:
         description: text | tool_use | tool_result | thinking
+        type: string
+    type: object
+  dto.ParseDocumentResponse:
+    properties:
+      document:
+        $ref: '#/definitions/dto.DocumentInfo'
+      markdown:
+        description: Markdown is every page's markdown, separated by "\n\n---\n\n".
+        type: string
+      pages:
+        items:
+          $ref: '#/definitions/dto.DocumentPage'
+        type: array
+      request_id:
+        description: RequestID is the stored document request (document_requests.id).
+        example: 6f1c2b6e-0f6a-4b8e-9f0e-0d4d2b7f3a11
         type: string
     type: object
   dto.ReadyResponse:
@@ -515,6 +601,113 @@ paths:
       summary: Run an agent turn (AG-UI protocol)
       tags:
       - AG-UI
+  /v1/documents/messages:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        The body is an Anthropic Messages request. The last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is read with docpipe (markdown and OCR text per page), and the agent answers the question with the documents in its context. The response is the same as `/v1/messages`: with `stream: true` (or `Accept: text/event-stream`) Anthropic SSE frames, preceded by a `document_parsed` extension event once the files are read (`ping` frames keep the stream open while they are); otherwise a single JSON message, plus `request_id` and `documents`.
+        The turn is stored in the session like any other (`metadata.session_id` continues one), so later `/v1/messages` calls on that session can ask about the same documents. The request, the files, what was read and the response are stored (`document_requests`, `document_files`).
+      parameters:
+      - description: Anthropic Messages request with document / image blocks
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MessagesRequest'
+      produces:
+      - application/json
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DocumentMessageResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dto.SteeredResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Ask the agent about PDFs and images (streaming or buffered)
+      tags:
+      - Documents
+  /v1/documents/parse:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Reads one uploaded file (PDF, JPEG, PNG or TIFF) with docpipe:
+        a PDF is rendered page by page, every page is read by TurboOCR and, when a
+        VLM is configured, re-read by it into markdown. Returns the markdown of every
+        page and of the whole document. A page that could not be read carries an `error`
+        and the rest still return; when no page can be read the response is `502`.
+        The request, the file and the result are stored (`document_requests`, `document_files`).'
+      parameters:
+      - description: PDF or image (JPEG, PNG, TIFF)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ParseDocumentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Read a PDF or image into markdown
+      tags:
+      - Documents
   /v1/mcp/servers:
     get:
       produces:

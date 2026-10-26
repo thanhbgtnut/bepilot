@@ -9,12 +9,13 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"github.com/thanhenti/bepilot/internal/agent"
+	"github.com/thanhenti/bepilot/agentcore/agent"
+	"github.com/thanhenti/bepilot/agentcore/llm"
+	"github.com/thanhenti/bepilot/agentcore/mcp"
+	"github.com/thanhenti/bepilot/agentcore/skills"
 	"github.com/thanhenti/bepilot/internal/api/dto"
 	"github.com/thanhenti/bepilot/internal/config"
-	"github.com/thanhenti/bepilot/internal/llm"
-	"github.com/thanhenti/bepilot/internal/mcp"
-	"github.com/thanhenti/bepilot/internal/skills"
+	"github.com/thanhenti/bepilot/internal/document"
 	"github.com/thanhenti/bepilot/internal/store"
 )
 
@@ -25,9 +26,13 @@ type Handlers struct {
 	Registry *llm.Registry
 	Skills   *skills.Service
 	MCP      *mcp.Manager // nil when MCP is disabled
-	LLM      config.LLM
-	Agentcfg config.AgentCfg
-	Log      *slog.Logger
+	// Documents reads uploaded files for /v1/documents/*; nil when
+	// documents.enabled is false (the endpoints answer 503).
+	Documents *document.Service
+	Docs      config.Documents
+	LLM       config.LLM
+	Agentcfg  config.AgentCfg
+	Log       *slog.Logger
 }
 
 func (h *Handlers) badRequest(c *app.RequestContext, msg string) {

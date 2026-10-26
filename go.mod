@@ -3,21 +3,36 @@ module github.com/thanhenti/bepilot
 go 1.26.0
 
 require (
-	github.com/cloudwego/eino v0.9.19
-	github.com/cloudwego/eino-ext/components/model/ark v0.1.70
-	github.com/cloudwego/eino-ext/components/model/claude v0.1.25
-	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
-	github.com/cloudwego/eino-ext/components/tool/mcp v0.0.9
 	github.com/cloudwego/hertz v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/hertz-contrib/sse v0.1.0
 	github.com/hertz-contrib/swagger v0.1.1
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/mark3labs/mcp-go v0.43.0
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/swag v1.16.6
 	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
+	github.com/cloudwego/eino v0.9.19 // indirect
+	github.com/cloudwego/eino-ext/components/model/ark v0.1.70 // indirect
+	github.com/cloudwego/eino-ext/components/model/claude v0.1.25 // indirect
+	github.com/cloudwego/eino-ext/components/model/openai v0.1.13 // indirect
+	github.com/cloudwego/eino-ext/components/tool/mcp v0.0.9 // indirect
+	github.com/fatih/color v1.13.0 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/hashicorp/go-hclog v1.6.3 // indirect
+	github.com/hashicorp/go-plugin v1.7.0 // indirect
+	github.com/hashicorp/yamux v0.1.2 // indirect
+	github.com/jolestar/go-commons-pool/v2 v2.1.2 // indirect
+	github.com/klippa-app/go-pdfium v1.17.2 // indirect
+	github.com/mark3labs/mcp-go v0.43.0 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
+	github.com/oklog/run v1.1.0 // indirect
+	github.com/tetratelabs/wazero v1.9.0 // indirect
+	golang.org/x/image v0.46.0 // indirect
 )
 
 require (
@@ -88,6 +103,8 @@ require (
 	github.com/slongfield/pyfmt v0.0.0-20220222012616-ea85ff4c361f // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1 // indirect
+	github.com/thanhenti/bepaylot/docpipe v0.0.0
+	github.com/thanhenti/bepilot/agentcore v0.0.0
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
@@ -109,12 +126,12 @@ require (
 	golang.org/x/arch v0.11.0 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa // indirect
-	golang.org/x/mod v0.39.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	google.golang.org/api v0.264.0 // indirect
@@ -123,3 +140,7 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/thanhenti/bepilot/agentcore => ./agentcore
+
+replace github.com/thanhenti/bepaylot/docpipe => ./docpipe

@@ -34,7 +34,7 @@ can list a user's chats and replay full transcripts.
 
 | Capability | How it works |
 |---|---|
-| **Dynamic system prompt** | Rebuilt every turn from ordered sections (`internal/agent/prompt`): identity, a live `<environment>` block (date/time, model, session, tools), rolling conversation summary, tool-use guidance, a **retrieved skill index**, response style, and per-session instructions. |
+| **Dynamic system prompt** | Rebuilt every turn from ordered sections (`agentcore/agent/prompt`): identity, a live `<environment>` block (date/time, model, session, tools), rolling conversation summary, tool-use guidance, a **retrieved skill index**, response style, and per-session instructions. |
 | **Exact math & valid JSON** | The `calculate` tool evaluates arithmetic with exact big-rational math (many expressions per call, no float error), and `json_validate` reports the line/column and a fix hint for invalid JSON. An always-on `<accuracy>` prompt section tells the model to compute with `calculate` instead of in its head and to never write expressions like `a + b` inside JSON values. As a server-side guarantee independent of the model, JSON in the answer (a ```` ```json ```` fence or a bare object/array) is held until complete and any arithmetic left in a value position is evaluated exactly before it is streamed or stored; prose and other code blocks are untouched, and each rewrite is logged as a warning. |
 | **Automatic skill discovery** | Every turn, the current conversation (last user message + rolling summary) is embedded and matched against skill descriptions via pgvector. Relevant skills are named in the prompt and loadable with the `load_skill` tool — **the user never has to mention a skill by name**. A skill's `allowed_tools` are bound automatically when it is retrieved. |
 | **Tool search** | Built-in tools (`current_time`, `calculate`, `json_validate`, `http_fetch`, `web_search`, `load_skill`, `tool_search`) are always bound. External tools (MCP servers etc.) are *deferred*: only their names appear in the prompt, and the model loads the ones it needs with the built-in `tool_search` tool (`select:<name>` or keywords) before calling them — so the context stays small however many tools are attached. With no external tools attached, nothing changes and `tool_search` is not offered. A skill's `allowed_tools` are loaded automatically. |
@@ -51,25 +51,37 @@ can list a user's chats and replay full transcripts.
 
 ## Project layout
 
+The agent itself is a separate Go module, `agentcore/`
+(`github.com/thanhenti/bepilot/agentcore`), with no database, HTTP or config
+loading — persistence is the `agent.Store` / `skills.Repo` interfaces, and
+`agentcore/memstore` is an in-memory implementation. The service below wires it
+to Postgres and Hertz; the root `go.mod` points at it with a `replace`. See
+[agentcore/README.md](agentcore/README.md).
+
 ```
 cmd/
   server/        HTTP server (also: -migrate-only)
   seed/          create a user + print an API key
   skills-sync/   sync skills/ into Postgres + embeddings
-internal/
-  config/        YAML + ${ENV} config loading
-  domain/        persistence-agnostic entities
-  store/         pgx pool, embedded goose migrations, repositories
-  retrieval/     Embedder interface + hash (offline) and OpenAI implementations
-  llm/           Provider abstraction + registry; fakeprovider/
-  skills/        SKILL.md parsing, discovery, sync, retrieval, load
-  tools/         built-in eino tools + concurrency-safe registry
-  mcp/           MCP client manager: dial servers, import tools, file watcher
-  agent/         the turn executor
+agentcore/       the agent module (own go.mod)
+  domain/        conversation entities (session, message, content block, skill, run)
+  agent/         the turn executor; Store / SkillRetriever interfaces
     prompt/      dynamic system-prompt sections
-    events/      internal event model + Anthropic SSE mapper
+    events/      internal event model + Anthropic / AG-UI frame mappers
+  llm/           Provider abstraction + registry; fakeprovider/
+  tools/         built-in eino tools + concurrency-safe registry
+  skills/        SKILL.md parsing, discovery, sync, retrieval, load
+  retrieval/     Embedder interface + hash (offline) and OpenAI implementations
+  mcp/           MCP client manager: server specs, dial, import tools, file watcher
+  memstore/      in-memory agent.Store + skills.Repo
+internal/
+  config/        YAML + ${ENV} config loading (agent/llm/embedding sections are agentcore types)
+  domain/        re-exports agentcore/domain + service-only entities (API keys, MCP servers, task results)
+  store/         pgx pool, embedded goose migrations, repositories; Store.Agent() adapts to agent.Store
+  document/      reads PDFs/images with docpipe (markdown + OCR text per page)
   server/        Hertz engine, middleware, SSE writer
   api/           HTTP handlers + Anthropic-shaped DTOs
+docpipe/         document pipeline module (render, OCR, VLM), own go.mod
 docs/            OpenAPI spec generated by swaggo/swag + Swagger UI, embedded — see docs/README.md
 skills/          skill documents (source of truth)
 deploy/          docker-compose (Postgres+pgvector), Dockerfile
@@ -212,7 +224,7 @@ conversation, or leave it empty to start fresh — the new id comes back in
 another user is rejected; an unknown one just starts a new session.
 
 The internal event stream is mapped to both formats by
-`internal/agent/events/{anthropic,agui}.go`; `/v1/messages` is untouched.
+`agentcore/agent/events/{anthropic,agui}.go`; `/v1/messages` is untouched.
 
 ### Sessions
 
@@ -244,6 +256,53 @@ The internal event stream is mapped to both formats by
 
 Returns `503` when MCP is disabled, `409` when the name is owned by the config
 file, `502` when the server can't be dialed. See [MCP servers](#mcp-servers).
+
+### Documents (docpipe)
+
+PDFs and images (JPEG, PNG, TIFF) are read with [docpipe](docpipe/README.md):
+PDF pages are rendered, every page goes through TurboOCR (`documents.ocr`),
+and if `documents.vlm` is configured a vision model re-reads it into markdown.
+Turn it on with `documents.enabled` (`BEPILOT_DOCUMENTS_ENABLED=true`,
+`TURBOOCR_URL`). While it is off, both endpoints answer `503`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/documents/parse` | multipart `file` → markdown per page and for the whole file |
+| `POST` | `/v1/documents/messages` | Anthropic Messages request with `document` / `image` blocks → the agent answers the question about them (streaming or buffered) |
+
+```bash
+# 1. markdown of a file
+curl -s localhost:8080/v1/documents/parse -H "x-api-key: $KEY" -F file=@contract.pdf | jq .markdown
+
+# 2. ask about it (same body as Anthropic's PDF support), streamed
+curl -sN localhost:8080/v1/documents/messages -H "x-api-key: $KEY" -H 'content-type: application/json' -d '{
+  "model": "claude-sonnet-5-5", "max_tokens": 2048, "stream": true,
+  "messages": [{"role": "user", "content": [
+    {"type": "document", "title": "contract.pdf",
+     "source": {"type": "base64", "media_type": "application/pdf", "data": "'"$(base64 < contract.pdf)"'"}},
+    {"type": "text", "text": "Tóm tắt các điều khoản thanh toán"}
+  ]}]
+}'
+```
+
+For `/v1/documents/messages`, the agent gets each page's markdown and raw
+OCR text, followed by the question, as the user message of a normal turn. The
+answer is shaped like `/v1/messages`. A stream sends `ping`s while the files
+are read, then a `document_parsed` event, then the usual Anthropic frames. A
+buffered response also includes `request_id` and `documents`. The turn is
+saved in the session, so later `/v1/messages` calls with the same
+`metadata.session_id` can ask about the same documents. Limits:
+`documents.max_file_mb` (`413` above it), `documents.max_files`, and
+`http.max_request_body_mb` (base64 adds a third). If a page cannot be read it
+gets an `error` field and the other pages are still returned; if no page can
+be read the response is `502`.
+
+Every call is stored in Postgres. `document_requests` holds the request (with
+file contents replaced by `file_index`), the docpipe result (markdown, OCR
+text and error per page), the response, status, error and latency, plus links
+to the session and messages. `document_files` holds the uploaded bytes with
+their size and sha256. The row is written when the request arrives and updated
+when it ends, so a request that crashed partway is still recorded.
 
 ## Skills
 
@@ -367,10 +426,10 @@ reached (nothing is persisted), `409` means the name belongs to the config file.
 
 ### How it works
 
-`internal/mcp` holds a `Manager` of live client connections (SDK:
+`agentcore/mcp` holds a `Manager` of live client connections (SDK:
 `mark3labs/mcp-go`, adapter: `eino-ext/components/tool/mcp`). On attach it dials,
 runs the MCP `Initialize` handshake, calls `tools/list`, wraps each tool under
-its prefixed name and registers it into `internal/tools.Registry` (which is
+its prefixed name and registers it into `agentcore/tools.Registry` (which is
 concurrency-safe). A stdio child process is tied to a background context, so it
 outlives individual requests and is only killed on detach or shutdown. The file
 watcher polls the file's mtime and also retries any declared-but-unattached

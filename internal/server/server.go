@@ -26,6 +26,9 @@ func New(cfg appcfg.HTTP, h *api.Handlers, log *slog.Logger) *server.Hertz {
 		server.WithExitWaitTime(cfg.ShutdownTimeout),
 		server.WithStreamBody(true),
 	}
+	if cfg.MaxRequestBodyMB > 0 {
+		opts = append(opts, server.WithMaxRequestBodySize(cfg.MaxRequestBodyMB<<20))
+	}
 	// Cancelling a request's context when the client hangs up needs connection
 	// state listening, which Hertz has on netpoll and on the standard transport
 	// on Unix — but not on Windows, where enabling it only logs "ListenConnState
@@ -54,6 +57,10 @@ func New(cfg appcfg.HTTP, h *api.Handlers, log *slog.Logger) *server.Hertz {
 	v1 := hz.Group("/v1", middleware.Auth(h.Store.APIKeys, h.Store.Users, cfg.AuthBypass))
 	{
 		v1.POST("/messages", h.Messages)
+
+		// Documents: read PDFs and images with docpipe, alone or for the agent.
+		v1.POST("/documents/parse", h.ParseDocument)
+		v1.POST("/documents/messages", h.DocumentMessages)
 
 		// AG-UI protocol surface for client SDKs (CopilotKit et al.).
 		agui := v1.Group("/ag-ui")

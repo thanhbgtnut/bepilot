@@ -8,9 +8,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/google/uuid"
 
-	"github.com/thanhenti/bepilot/internal/agent"
-	"github.com/thanhenti/bepilot/internal/agent/events"
-	"github.com/thanhenti/bepilot/internal/agent/prompt"
+	"github.com/thanhenti/bepilot/agentcore/agent"
+	"github.com/thanhenti/bepilot/agentcore/agent/events"
+	"github.com/thanhenti/bepilot/agentcore/agent/prompt"
 	"github.com/thanhenti/bepilot/internal/api/dto"
 	"github.com/thanhenti/bepilot/internal/domain"
 	"github.com/thanhenti/bepilot/internal/server/middleware"

@@ -56,7 +56,7 @@ type TaskResultDTO struct {
 
 // SessionReport is the response of GET /v1/sessions/{id}/report: a session's
 // saved task results. It is read straight from Postgres (see
-// Handlers.GetSessionReport) — building it never touches internal/agent — so
+// Handlers.GetSessionReport) — building it never touches agentcore/agent — so
 // it keeps serving already-saved results even while an agent run is failing.
 type SessionReport struct {
 	SessionBrief

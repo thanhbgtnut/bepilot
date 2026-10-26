@@ -4,11 +4,11 @@ import (
 	"context"
 	"log/slog"
 
+	appmcp "github.com/thanhenti/bepilot/agentcore/mcp"
+	"github.com/thanhenti/bepilot/agentcore/skills"
+	"github.com/thanhenti/bepilot/agentcore/tools"
 	"github.com/thanhenti/bepilot/internal/config"
-	appmcp "github.com/thanhenti/bepilot/internal/mcp"
-	"github.com/thanhenti/bepilot/internal/skills"
 	"github.com/thanhenti/bepilot/internal/store"
-	"github.com/thanhenti/bepilot/internal/tools"
 )
 
 func buildToolRegistry(skillSvc *skills.Service, cfg *config.Config, st *store.Store) (*tools.Registry, error) {
@@ -20,7 +20,7 @@ func buildToolRegistry(skillSvc *skills.Service, cfg *config.Config, st *store.S
 // (persisted in the database). Per-server failures are logged, not fatal.
 func bootstrapMCP(ctx context.Context, m *appmcp.Manager, st *store.Store, cfg *config.Config, log *slog.Logger) {
 	if cfg.MCP.File != "" {
-		specs, err := config.LoadMCPServers(cfg.MCP.File)
+		specs, err := appmcp.LoadServers(cfg.MCP.File)
 		if err != nil {
 			log.Warn("mcp: load config file failed", "path", cfg.MCP.File, "err", err)
 		} else {
@@ -33,12 +33,12 @@ func bootstrapMCP(ctx context.Context, m *appmcp.Manager, st *store.Store, cfg *
 		log.Warn("mcp: load persisted servers failed", "err", err)
 		return
 	}
-	var specs []config.MCPServerSpec
+	var specs []appmcp.ServerSpec
 	for _, row := range rows {
 		if !row.Enabled {
 			continue
 		}
-		s, err := config.MCPServerSpecFromMap(row.Spec)
+		s, err := appmcp.ServerSpecFromMap(row.Spec)
 		if err != nil {
 			log.Warn("mcp: skipping malformed persisted server", "name", row.Name, "err", err)
 			continue

@@ -7,10 +7,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/google/uuid"
-	hsse "github.com/hertz-contrib/sse"
 
-	"github.com/thanhenti/bepilot/internal/agent"
-	"github.com/thanhenti/bepilot/internal/agent/events"
+	"github.com/thanhenti/bepilot/agentcore/agent"
+	"github.com/thanhenti/bepilot/agentcore/agent/events"
 	"github.com/thanhenti/bepilot/internal/api/dto"
 	"github.com/thanhenti/bepilot/internal/domain"
 	"github.com/thanhenti/bepilot/internal/server/middleware"
@@ -55,9 +54,29 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
+	in, ok := h.turnInput(ctx, c, user, req, userText, userText)
+	if !ok {
+		return
+	}
+	if wantsStream(c, req) {
+		h.streamTurn(ctx, c, in)
+		return
+	}
+	h.bufferedTurn(ctx, c, in)
+}
+
+// wantsStream reports whether the response should be Server-Sent Events.
+func wantsStream(c *app.RequestContext, req dto.MessagesRequest) bool {
+	return req.Stream || strings.Contains(string(c.GetHeader("Accept")), "text/event-stream")
+}
+
+// turnInput validates the turn settings of req, resolves (or creates, titled
+// from titleText) its session, and returns the agent input for userText. On
+// a bad request it writes the error response and returns false.
+func (h *Handlers) turnInput(ctx context.Context, c *app.RequestContext, user domain.User, req dto.MessagesRequest, userText, titleText string) (agent.RunInput, bool) {
 	if req.HistoryTokenBudget < 0 {
 		h.badRequest(c, "history_token_budget must be >= 0")
-		return
+		return agent.RunInput{}, false
 	}
 
 	provider := req.Provider
@@ -66,7 +85,7 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 	}
 	if _, err := h.Registry.Get(provider); err != nil {
 		h.badRequest(c, err.Error())
-		return
+		return agent.RunInput{}, false
 	}
 	model := strings.TrimSpace(req.Model)
 	if model == "" {
@@ -74,7 +93,7 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 	}
 
 	// Resolve or create the session.
-	sess, err := h.resolveSession(ctx, user, req, provider, model, userText)
+	sess, err := h.resolveSession(ctx, user, req, provider, model, titleText)
 	if err != nil {
 		switch err {
 		case errSessionNotFound:
@@ -84,15 +103,15 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 		default:
 			h.serverError(c, err)
 		}
-		return
+		return agent.RunInput{}, false
 	}
 
 	if req.Metadata != nil && req.Metadata.UserID != "" && req.Metadata.UserID != user.ID.String() {
 		c.JSON(consts.StatusForbidden, dto.NewError("permission_error", "metadata.user_id does not match the authenticated user"))
-		return
+		return agent.RunInput{}, false
 	}
 
-	in := agent.RunInput{
+	return agent.RunInput{
 		User:          user,
 		Session:       sess,
 		UserText:      userText,
@@ -103,13 +122,7 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 		RequestSystem: dto.SystemText(req.System),
 
 		HistoryTokenBudget: req.HistoryTokenBudget,
-	}
-
-	if req.Stream || strings.Contains(string(c.GetHeader("Accept")), "text/event-stream") {
-		h.streamTurn(ctx, c, in)
-		return
-	}
-	h.bufferedTurn(ctx, c, in)
+	}, true
 }
 
 func (h *Handlers) bufferedTurn(ctx context.Context, c *app.RequestContext, in agent.RunInput) {
@@ -118,12 +131,22 @@ func (h *Handlers) bufferedTurn(ctx context.Context, c *app.RequestContext, in a
 		h.serverError(c, err)
 		return
 	}
-	brief := dto.BriefFromDomain(in.Session)
 	if out.Steered {
-		c.JSON(consts.StatusAccepted, dto.SteeredResponse{Type: "steered", MessageID: messageID(out.UserMessage.ID), Session: &brief})
+		c.JSON(consts.StatusAccepted, steeredResponse(in, out))
 		return
 	}
-	resp := dto.MessageResponse{
+	c.JSON(consts.StatusOK, messageResponse(in, out))
+}
+
+func steeredResponse(in agent.RunInput, out agent.RunOutput) dto.SteeredResponse {
+	brief := dto.BriefFromDomain(in.Session)
+	return dto.SteeredResponse{Type: "steered", MessageID: messageID(out.UserMessage.ID), Session: &brief}
+}
+
+// messageResponse is the Anthropic-shaped body for a finished turn.
+func messageResponse(in agent.RunInput, out agent.RunOutput) dto.MessageResponse {
+	brief := dto.BriefFromDomain(in.Session)
+	return dto.MessageResponse{
 		ID:         messageID(out.AssistantMessage.ID),
 		Type:       "message",
 		Role:       "assistant",
@@ -136,17 +159,25 @@ func (h *Handlers) bufferedTurn(ctx context.Context, c *app.RequestContext, in a
 		},
 		Session: &brief,
 	}
-	c.JSON(consts.StatusOK, resp)
 }
 
 func (h *Handlers) streamTurn(ctx context.Context, c *app.RequestContext, in agent.RunInput) {
-	w := sse.NewWriter(c, 0)
-	defer w.Close()
+	w, stop := h.openStream(ctx, c)
+	defer stop()
+	h.runStream(ctx, w, in)
+}
 
+// openStream starts an Anthropic-style SSE response with keep-alive pings.
+// Call stop when the response is complete.
+func (h *Handlers) openStream(ctx context.Context, c *app.RequestContext) (w *sse.Writer, stop func()) {
+	w = sse.NewWriter(c, 0)
 	pingCtx, cancelPing := context.WithCancel(ctx)
-	defer cancelPing()
 	go w.RunPinger(pingCtx, h.Agentcfg.PingInterval)
+	return w, func() { cancelPing(); w.Close() }
+}
 
+// runStream runs one turn onto an open stream.
+func (h *Handlers) runStream(ctx context.Context, w *sse.Writer, in agent.RunInput) (agent.RunOutput, error) {
 	sink := func(ev events.Event) { w.Emit(ev) }
 	out, err := h.Agent.Run(ctx, in, sink)
 	if err != nil {
@@ -155,8 +186,9 @@ func (h *Handlers) streamTurn(ctx context.Context, c *app.RequestContext, in age
 	}
 	if out.Steered {
 		// Nothing was streamed: the reply comes on the running turn's stream.
-		w.Publish(&hsse.Event{Event: "steered", Data: []byte(`{"type":"steered","message_id":"` + messageID(out.UserMessage.ID) + `"}`)})
+		w.Publish(&events.Frame{Event: "steered", Data: []byte(`{"type":"steered","message_id":"` + messageID(out.UserMessage.ID) + `"}`)})
 	}
+	return out, err
 }
 
 // --- session resolution -------------------------------------------------—-—-

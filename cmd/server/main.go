@@ -9,17 +9,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/thanhenti/bepilot/agentcore/agent"
+	"github.com/thanhenti/bepilot/agentcore/llm"
+	"github.com/thanhenti/bepilot/agentcore/llm/fakeprovider"
+	appmcp "github.com/thanhenti/bepilot/agentcore/mcp"
+	"github.com/thanhenti/bepilot/agentcore/retrieval"
+	"github.com/thanhenti/bepilot/agentcore/skills"
 	_ "github.com/thanhenti/bepilot/docs" // generated OpenAPI docs (make swag)
-	"github.com/thanhenti/bepilot/internal/agent"
 	"github.com/thanhenti/bepilot/internal/api"
 	"github.com/thanhenti/bepilot/internal/config"
-	"github.com/thanhenti/bepilot/internal/llm"
-	"github.com/thanhenti/bepilot/internal/llm/fakeprovider"
+	"github.com/thanhenti/bepilot/internal/document"
 	"github.com/thanhenti/bepilot/internal/logging"
-	appmcp "github.com/thanhenti/bepilot/internal/mcp"
-	"github.com/thanhenti/bepilot/internal/retrieval"
 	"github.com/thanhenti/bepilot/internal/server"
-	"github.com/thanhenti/bepilot/internal/skills"
 	"github.com/thanhenti/bepilot/internal/store"
 )
 
@@ -114,17 +115,29 @@ func main() {
 			"reload_interval", cfg.MCP.ReloadInterval)
 	}
 
-	ag := agent.New(st, registry, toolReg, skillSvc, cfg.Agent, cfg.LLM, log)
+	ag := agent.New(st.Agent(), registry, toolReg, skillSvc, cfg.Agent.Config, cfg.LLM, log)
+
+	var docSvc *document.Service
+	if cfg.Docs.Enabled {
+		if docSvc, err = document.New(cfg.Docs); err != nil {
+			log.Error("document service init failed", "err", err)
+			os.Exit(1)
+		}
+		defer docSvc.Close()
+		log.Info("documents enabled", "render_mode", cfg.Docs.RenderMode, "ocr", cfg.Docs.OCR.BaseURL, "vlm", cfg.Docs.VLM.Model)
+	}
 
 	handlers := &api.Handlers{
-		Store:    st,
-		Agent:    ag,
-		Registry: registry,
-		Skills:   skillSvc,
-		MCP:      mcpMgr,
-		LLM:      cfg.LLM,
-		Agentcfg: cfg.Agent,
-		Log:      log,
+		Store:     st,
+		Agent:     ag,
+		Registry:  registry,
+		Skills:    skillSvc,
+		MCP:       mcpMgr,
+		Documents: docSvc,
+		Docs:      cfg.Docs,
+		LLM:       cfg.LLM,
+		Agentcfg:  cfg.Agent,
+		Log:       log,
 	}
 
 	hz := server.New(cfg.HTTP, handlers, log)

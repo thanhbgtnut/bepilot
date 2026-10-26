@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/thanhenti/bepilot/agentcore/agent"
+	"github.com/thanhenti/bepilot/agentcore/llm"
+	"github.com/thanhenti/bepilot/agentcore/retrieval"
 )
 
 // Config is the root configuration object for the server.
@@ -21,6 +25,7 @@ type Config struct {
 	Skills SkillsCfg `yaml:"skills"`
 	Tools  ToolsCfg  `yaml:"tools"`
 	MCP    MCPCfg    `yaml:"mcp"`
+	Docs   Documents `yaml:"documents"`
 	Log    Log       `yaml:"log"`
 }
 
@@ -39,7 +44,7 @@ type MCPCfg struct {
 	// Enabled turns the whole MCP subsystem on. When false, File and the API
 	// are ignored and no MCP clients are started.
 	Enabled bool `yaml:"enabled"`
-	// File is the path to the server-list YAML (see MCPServersFile). Empty
+	// File is the path to the server-list YAML (see mcp.ServersFile). Empty
 	// disables the file source; the API still works.
 	File string `yaml:"file"`
 	// ReloadInterval is how often File's mtime is polled for changes. Each
@@ -53,55 +58,42 @@ type MCPCfg struct {
 	ToolPrefix string `yaml:"tool_prefix"`
 }
 
-// MCPServersFile is the schema of the file referenced by MCPCfg.File.
-type MCPServersFile struct {
-	Servers []MCPServerSpec `yaml:"servers"`
+// Documents configures the document endpoints (/v1/documents/*), which read
+// PDFs and images with docpipe: pages are rendered, read by TurboOCR and,
+// when VLM.BaseURL is set, re-read by a vision model into markdown.
+type Documents struct {
+	// Enabled turns the endpoints on; when false they answer 503.
+	Enabled bool `yaml:"enabled"`
+	// RenderMode is the PDF renderer: webassembly (default, no cgo) or
+	// multi_threaded (needs libpdfium and the pdfium-worker binary).
+	RenderMode    string `yaml:"render_mode"`
+	RenderWorkers int    `yaml:"render_workers"`
+	// DPI renders PDF pages at this resolution (default 300).
+	DPI int `yaml:"dpi"`
+	// Concurrency is how many pages are read at once (default 4).
+	Concurrency int `yaml:"concurrency"`
+	// MaxFileMB caps one uploaded file (default 32).
+	MaxFileMB int `yaml:"max_file_mb"`
+	// MaxFiles caps the documents in one /v1/documents/messages request
+	// (default 5).
+	MaxFiles int         `yaml:"max_files"`
+	OCR      DocumentOCR `yaml:"ocr"`
+	VLM      DocumentVLM `yaml:"vlm"`
 }
 
-// MCPServerSpec describes one MCP server connection. It is used both for the
-// file source and as the persisted/API shape.
-type MCPServerSpec struct {
-	Name      string `yaml:"name" json:"name"`
-	Transport string `yaml:"transport" json:"transport"` // stdio | sse | streamable_http
-	Disabled  bool   `yaml:"disabled" json:"disabled,omitempty"`
-
-	// stdio transport
-	Command string            `yaml:"command" json:"command,omitempty"`
-	Args    []string          `yaml:"args" json:"args,omitempty"`
-	Env     map[string]string `yaml:"env" json:"env,omitempty"`
-
-	// sse / streamable_http transport
-	URL     string            `yaml:"url" json:"url,omitempty"`
-	Headers map[string]string `yaml:"headers" json:"headers,omitempty"`
-
-	// ToolAllowlist, when non-empty, imports only these tool names from the
-	// server (matched against the server-side name, before prefixing).
-	ToolAllowlist []string `yaml:"tool_allowlist" json:"tool_allowlist,omitempty"`
+// DocumentOCR is the TurboOCR server (POST /ocr/raw).
+type DocumentOCR struct {
+	BaseURL string        `yaml:"base_url"`
+	Timeout time.Duration `yaml:"timeout"`
 }
 
-// Validate checks a single server spec.
-func (s MCPServerSpec) Validate() error {
-	if s.Name == "" {
-		return fmt.Errorf("mcp server: name is required")
-	}
-	for _, r := range s.Name {
-		if !(r == '-' || r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')) {
-			return fmt.Errorf("mcp server %q: name may only contain letters, digits, '-' and '_'", s.Name)
-		}
-	}
-	switch s.Transport {
-	case "stdio":
-		if s.Command == "" {
-			return fmt.Errorf("mcp server %q: command is required for the stdio transport", s.Name)
-		}
-	case "sse", "streamable_http":
-		if s.URL == "" {
-			return fmt.Errorf("mcp server %q: url is required for the %s transport", s.Name, s.Transport)
-		}
-	default:
-		return fmt.Errorf("mcp server %q: transport %q is not supported (want stdio | sse | streamable_http)", s.Name, s.Transport)
-	}
-	return nil
+// DocumentVLM is an OpenAI-compatible vision model that re-reads each page
+// into markdown. Empty BaseURL = OCR only.
+type DocumentVLM struct {
+	BaseURL string        `yaml:"base_url"`
+	APIKey  string        `yaml:"api_key"`
+	Model   string        `yaml:"model"`
+	Timeout time.Duration `yaml:"timeout"`
 }
 
 // HTTP holds the Hertz server settings.
@@ -111,6 +103,9 @@ type HTTP struct {
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
 	CORSOrigins     []string      `yaml:"cors_origins"`
+	// MaxRequestBodyMB caps a request body (default 64). Document uploads
+	// need it above Hertz's 4 MB default; base64 adds a third.
+	MaxRequestBodyMB int `yaml:"max_request_body_mb"`
 	// AuthBypass skips x-api-key verification entirely and treats every
 	// request as a fixed local dev user. Dev-only — never set this in a
 	// deployed environment.
@@ -126,46 +121,20 @@ type DB struct {
 	AutoMigrate     bool          `yaml:"auto_migrate"`
 }
 
-// ProviderCfg configures one LLM provider implementation.
-type ProviderCfg struct {
-	Kind    string `yaml:"kind"` // claude | openai | ark
-	APIKey  string `yaml:"api_key"`
-	BaseURL string `yaml:"base_url"`
-	Region  string `yaml:"region"` // ark / bedrock
-}
-
 // LLM configures the provider registry and default model selection.
-type LLM struct {
-	DefaultProvider string `yaml:"default_provider"`
-	DefaultModel    string `yaml:"default_model"`
-	SummaryModel    string `yaml:"summary_model"`
-	MaxTokens       int    `yaml:"max_tokens"`
-	// Temperature is the default sampling temperature when a request does not
-	// set one. Unset = the provider's own default. Lower it (0–0.3) where the
-	// same request should give the same answer every time.
-	Temperature    *float32               `yaml:"temperature"`
-	RequestTimeout time.Duration          `yaml:"request_timeout"`
-	Providers      map[string]ProviderCfg `yaml:"providers"`
-}
+type LLM = llm.Config
+
+// ProviderCfg configures one LLM provider implementation.
+type ProviderCfg = llm.ProviderConfig
 
 // Embedding configures the embedder used for skill retrieval.
-type Embedding struct {
-	Kind    string `yaml:"kind"` // hash | openai
-	Model   string `yaml:"model"`
-	APIKey  string `yaml:"api_key"`
-	BaseURL string `yaml:"base_url"`
-	Dim     int    `yaml:"dim"`
-}
+type Embedding = retrieval.Config
 
-// AgentCfg holds knobs that shape agent behaviour.
+// AgentCfg holds knobs that shape agent behaviour, plus how often the HTTP
+// layer pings an open stream.
 type AgentCfg struct {
-	Identity           string        `yaml:"identity"`
-	ResponseStyle      string        `yaml:"response_style"`
-	MaxSteps           int           `yaml:"max_steps"`
-	HistoryTokenBudget int           `yaml:"history_token_budget"`
-	SummarizeEveryN    int           `yaml:"summarize_every_n"`
-	SkillTopK          int           `yaml:"skill_top_k"`
-	PingInterval       time.Duration `yaml:"ping_interval"`
+	agent.Config `yaml:",inline"`
+	PingInterval time.Duration `yaml:"ping_interval"`
 }
 
 // SkillsCfg configures the file-based skill source.
@@ -246,6 +215,7 @@ func (c *Config) applyDefaults() {
 	setDuration(&c.HTTP.ReadTimeout, 30*time.Second)
 	setDuration(&c.HTTP.WriteTimeout, 0) // 0 = no write timeout, required for SSE
 	setDuration(&c.HTTP.ShutdownTimeout, 20*time.Second)
+	setInt(&c.HTTP.MaxRequestBodyMB, 64)
 
 	setInt32(&c.DB.MaxConns, 10)
 	setInt32(&c.DB.MinConns, 1)
@@ -263,8 +233,8 @@ func (c *Config) applyDefaults() {
 	setString(&c.Embd.Kind, "hash")
 	setInt(&c.Embd.Dim, 1536)
 
-	setString(&c.Agent.Identity, defaultIdentity)
-	setString(&c.Agent.ResponseStyle, defaultResponseStyle)
+	setString(&c.Agent.Identity, agent.DefaultIdentity)
+	setString(&c.Agent.ResponseStyle, agent.DefaultResponseStyle)
 	setInt(&c.Agent.MaxSteps, 16)
 	setInt(&c.Agent.HistoryTokenBudget, 24000)
 	setInt(&c.Agent.SummarizeEveryN, 8)
@@ -279,6 +249,17 @@ func (c *Config) applyDefaults() {
 		if c.MCP.File != "" {
 			setDuration(&c.MCP.ReloadInterval, 10*time.Second)
 		}
+	}
+
+	if c.Docs.Enabled {
+		setString(&c.Docs.RenderMode, "webassembly")
+		setInt(&c.Docs.RenderWorkers, 2)
+		setInt(&c.Docs.DPI, 300)
+		setInt(&c.Docs.Concurrency, 4)
+		setInt(&c.Docs.MaxFileMB, 32)
+		setInt(&c.Docs.MaxFiles, 5)
+		setDuration(&c.Docs.OCR.Timeout, 2*time.Minute)
+		setDuration(&c.Docs.VLM.Timeout, 5*time.Minute)
 	}
 
 	setString(&c.Log.Level, "info")
@@ -301,6 +282,12 @@ func (c *Config) validate() error {
 		default:
 			return fmt.Errorf("llm.providers.%s.kind %q is not supported", name, p.Kind)
 		}
+	}
+	if c.Docs.Enabled && c.Docs.OCR.BaseURL == "" {
+		return fmt.Errorf("documents.ocr.base_url is required when documents.enabled is true")
+	}
+	if c.Docs.VLM.BaseURL != "" && c.Docs.VLM.Model == "" {
+		return fmt.Errorf("documents.vlm.model is required when documents.vlm.base_url is set")
 	}
 	if c.Embd.Kind != "hash" && c.Embd.Kind != "openai" {
 		return fmt.Errorf("embedding.kind %q is not supported", c.Embd.Kind)
@@ -328,7 +315,3 @@ func setDuration(p *time.Duration, def time.Duration) {
 		*p = def
 	}
 }
-
-const defaultIdentity = `You are bepilot, a helpful, precise AI assistant. You give direct, well-structured answers, use tools when they materially improve the result, and you never fabricate facts or tool output.`
-
-const defaultResponseStyle = `Prefer concise, skimmable answers. Use Markdown. Lead with the answer, then supporting detail. Match the user's language.`

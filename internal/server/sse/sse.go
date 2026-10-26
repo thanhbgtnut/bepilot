@@ -13,13 +13,13 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	hsse "github.com/hertz-contrib/sse"
 
-	"github.com/thanhenti/bepilot/internal/agent/events"
+	"github.com/thanhenti/bepilot/agentcore/agent/events"
 )
 
 // Mapper turns one internal event into zero or more SSE frames. Implementations
 // are stateful and are called from a single goroutine.
 type Mapper interface {
-	Map(events.Event) []*hsse.Event
+	Map(events.Event) []*events.Frame
 }
 
 // Writer serialises agent events to an SSE stream via a Mapper, and (when a
@@ -28,7 +28,7 @@ type Mapper interface {
 type Writer struct {
 	stream *hsse.Stream
 	mapper Mapper
-	ping   *hsse.Event // nil disables keep-alive pings
+	ping   *events.Frame // nil disables keep-alive pings
 
 	mu       sync.Mutex
 	lastSend time.Time
@@ -39,7 +39,7 @@ type Writer struct {
 // reported in message_start.
 func NewWriter(c *app.RequestContext, inputTokens int) *Writer {
 	return newWriter(c, events.NewAnthropicMapper(inputTokens),
-		&hsse.Event{Event: "ping", Data: []byte(`{"type":"ping"}`)})
+		&events.Frame{Event: "ping", Data: []byte(`{"type":"ping"}`)})
 }
 
 // NewAGUIWriter prepares an AG-UI protocol SSE stream for one run and returns
@@ -50,7 +50,7 @@ func NewAGUIWriter(c *app.RequestContext, threadID, runID string) (*Writer, *eve
 	return newWriter(c, m, nil), m
 }
 
-func newWriter(c *app.RequestContext, m Mapper, ping *hsse.Event) *Writer {
+func newWriter(c *app.RequestContext, m Mapper, ping *events.Frame) *Writer {
 	c.SetStatusCode(consts.StatusOK)
 	c.Response.Header.Set("Content-Type", "text/event-stream; charset=utf-8")
 	c.Response.Header.Set("Cache-Control", "no-cache")
@@ -72,14 +72,14 @@ func (w *Writer) Emit(ev events.Event) {
 		return
 	}
 	for _, frame := range w.mapper.Map(ev) {
-		_ = w.stream.Publish(frame)
+		_ = w.stream.Publish(toHertz(frame))
 	}
 	w.lastSend = time.Now()
 }
 
 // Publish writes one already-built frame directly, bypassing the mapper. Used
 // for transport-level lifecycle frames the handler owns.
-func (w *Writer) Publish(frame *hsse.Event) {
+func (w *Writer) Publish(frame *events.Frame) {
 	if frame == nil {
 		return
 	}
@@ -88,7 +88,7 @@ func (w *Writer) Publish(frame *hsse.Event) {
 	if w.closed {
 		return
 	}
-	_ = w.stream.Publish(frame)
+	_ = w.stream.Publish(toHertz(frame))
 	w.lastSend = time.Now()
 }
 
@@ -100,7 +100,7 @@ func (w *Writer) Ping() {
 	if w.closed || w.ping == nil || time.Since(w.lastSend) < time.Second {
 		return
 	}
-	_ = w.stream.Publish(w.ping)
+	_ = w.stream.Publish(toHertz(w.ping))
 	w.lastSend = time.Now()
 }
 
@@ -130,4 +130,8 @@ func (w *Writer) RunPinger(ctx context.Context, every time.Duration) {
 			w.Ping()
 		}
 	}
+}
+
+func toHertz(f *events.Frame) *hsse.Event {
+	return &hsse.Event{Event: f.Event, Data: f.Data}
 }

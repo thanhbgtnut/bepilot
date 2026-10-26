@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/thanhenti/bepilot/agentcore/retrieval"
+	"github.com/thanhenti/bepilot/agentcore/skills"
 	"github.com/thanhenti/bepilot/internal/config"
 	"github.com/thanhenti/bepilot/internal/logging"
-	"github.com/thanhenti/bepilot/internal/retrieval"
-	"github.com/thanhenti/bepilot/internal/skills"
 	"github.com/thanhenti/bepilot/internal/store"
 )
 

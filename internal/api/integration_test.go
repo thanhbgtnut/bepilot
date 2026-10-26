@@ -13,17 +13,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thanhenti/bepilot/internal/agent"
+	"github.com/thanhenti/bepilot/agentcore/agent"
+	"github.com/thanhenti/bepilot/agentcore/llm"
+	"github.com/thanhenti/bepilot/agentcore/llm/fakeprovider"
+	"github.com/thanhenti/bepilot/agentcore/retrieval"
+	"github.com/thanhenti/bepilot/agentcore/skills"
+	"github.com/thanhenti/bepilot/agentcore/tools"
 	"github.com/thanhenti/bepilot/internal/api"
 	"github.com/thanhenti/bepilot/internal/config"
-	"github.com/thanhenti/bepilot/internal/llm"
-	"github.com/thanhenti/bepilot/internal/llm/fakeprovider"
+	"github.com/thanhenti/bepilot/internal/document"
 	"github.com/thanhenti/bepilot/internal/logging"
-	"github.com/thanhenti/bepilot/internal/retrieval"
 	"github.com/thanhenti/bepilot/internal/server"
-	"github.com/thanhenti/bepilot/internal/skills"
 	"github.com/thanhenti/bepilot/internal/store"
-	"github.com/thanhenti/bepilot/internal/tools"
 )
 
 // These tests need a Postgres with pgvector. Set:
@@ -83,14 +84,26 @@ func setup(t *testing.T) *testEnv {
 	}
 
 	acfg := config.AgentCfg{
-		Identity: "You are bepilot.", ResponseStyle: "Be concise.",
-		MaxSteps: 8, HistoryTokenBudget: 24000, SummarizeEveryN: 0, SkillTopK: 4,
+		Config: agent.Config{
+			Identity: "You are bepilot.", ResponseStyle: "Be concise.",
+			MaxSteps: 8, HistoryTokenBudget: 24000, SummarizeEveryN: 0, SkillTopK: 4,
+		},
 		PingInterval: time.Second,
 	}
 	lcfg := config.LLM{DefaultProvider: "fake", DefaultModel: "bepilot-fake-1", MaxTokens: 1024}
-	ag := agent.New(st, reg, toolReg, skillSvc, acfg, lcfg, log)
+	ag := agent.New(st.Agent(), reg, toolReg, skillSvc, acfg.Config, lcfg, log)
 
-	h := &api.Handlers{Store: st, Agent: ag, Registry: reg, Skills: skillSvc, LLM: lcfg, Agentcfg: acfg, Log: log}
+	docsCfg := config.Documents{
+		Enabled: true, RenderMode: "webassembly", RenderWorkers: 1, DPI: 50, Concurrency: 2, MaxFileMB: 8, MaxFiles: 3,
+		OCR: config.DocumentOCR{BaseURL: fakeOCR(t).URL, Timeout: 10 * time.Second},
+	}
+	docSvc, err := document.New(docsCfg)
+	if err != nil {
+		t.Fatalf("document service: %v", err)
+	}
+	t.Cleanup(docSvc.Close)
+
+	h := &api.Handlers{Store: st, Agent: ag, Registry: reg, Skills: skillSvc, LLM: lcfg, Agentcfg: acfg, Documents: docSvc, Docs: docsCfg, Log: log}
 
 	// pick a free port
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -120,7 +133,7 @@ func setup(t *testing.T) *testEnv {
 
 func truncate(t *testing.T, st *store.Store) {
 	_, err := st.Pool.Exec(context.Background(),
-		`TRUNCATE users, api_keys, sessions, messages, content_blocks, agent_runs, task_results RESTART IDENTITY CASCADE`)
+		`TRUNCATE users, api_keys, sessions, messages, content_blocks, agent_runs, task_results, document_requests, document_files RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("truncate: %v", err)
 	}

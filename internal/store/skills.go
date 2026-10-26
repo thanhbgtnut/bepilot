@@ -100,10 +100,7 @@ func (r *SkillsRepo) GetBySlug(ctx context.Context, slug string) (domain.Skill, 
 }
 
 // SkillMatch is a retrieval hit with its cosine similarity in [0,1].
-type SkillMatch struct {
-	domain.Skill
-	Score float64
-}
+type SkillMatch = domain.SkillMatch
 
 // Retrieve returns the top-k enabled skills nearest to the query vector by
 // cosine similarity. Skills without an embedding are excluded.

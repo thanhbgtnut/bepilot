@@ -10,19 +10,23 @@ help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: tidy
-tidy: ## go mod tidy
+tidy: ## go mod tidy (both modules)
+	cd agentcore && go mod tidy
 	go mod tidy
 
 .PHONY: build
 build: ## Build all binaries
+	cd agentcore && go build ./...
 	go build ./...
 
 .PHONY: vet
-vet: ## go vet
+vet: ## go vet (both modules)
+	cd agentcore && go vet ./...
 	go vet ./...
 
 .PHONY: test
 test: ## Run network-free tests (set TEST_DATABASE_URL to include DB tests)
+	cd agentcore && go test ./...
 	go test ./...
 
 .PHONY: up

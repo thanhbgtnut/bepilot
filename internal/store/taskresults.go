@@ -38,7 +38,7 @@ func (r *TaskResultsRepo) Upsert(ctx context.Context, sessionID uuid.UUID, taskK
 
 // UpsertTaskResult adapts Upsert to tools.TaskResultWriter (the built-in
 // save_task_result tool depends only on that narrow interface, not on this
-// package, so internal/tools never has to import internal/store).
+// package, so agentcore/tools never has to import internal/store).
 func (r *TaskResultsRepo) UpsertTaskResult(ctx context.Context, sessionID uuid.UUID, taskKey, title string, result map[string]any) error {
 	_, err := r.Upsert(ctx, sessionID, taskKey, title, result)
 	return err

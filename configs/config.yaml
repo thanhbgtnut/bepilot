@@ -11,6 +11,7 @@ http:
   write_timeout: 0s          # keep 0 for SSE
   shutdown_timeout: 20s
   cors_origins: []           # empty = allow any origin
+  max_request_body_mb: 64    # document uploads; base64 adds a third
   # DEV ONLY: skips x-api-key verification entirely when true. Never enable
   # this in a deployed environment.
   auth_bypass: ${BEPILOT_AUTH_BYPASS}   # empty/false = auth required (default)
@@ -96,6 +97,28 @@ mcp:
   reload_interval: 10s              # 0 = load once at startup, never re-read
   init_timeout: 20s                 # per-server connect + handshake budget
   tool_prefix: "mcp__"             # tools import as <prefix><server>__<tool>
+
+documents:
+  # /v1/documents/parse and /v1/documents/messages read PDFs and images with
+  # docpipe: render pages, OCR them with TurboOCR, optionally re-read them with
+  # a vision model. Off = both endpoints answer 503.
+  enabled: ${BEPILOT_DOCUMENTS_ENABLED}
+  render_mode: webassembly          # or multi_threaded (needs libpdfium + pdfium-worker)
+  render_workers: 2
+  dpi: 300
+  concurrency: 4                    # pages read at once
+  max_file_mb: 32
+  max_files: 5                      # documents per /v1/documents/messages request
+  ocr:
+    base_url: ${TURBOOCR_URL}       # TurboOCR server (POST /ocr/raw)
+    timeout: 2m
+  vlm:
+    # OpenAI-compatible vision model that re-reads each page into markdown.
+    # Leave base_url empty for OCR only.
+    base_url: ${DOCS_VLM_BASE_URL}
+    api_key: ${DOCS_VLM_API_KEY}
+    model: ${DOCS_VLM_MODEL}
+    timeout: 5m
 
 log:
   level: ${BEPILOT_LOG_LEVEL}
