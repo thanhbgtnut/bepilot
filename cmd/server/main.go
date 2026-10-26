@@ -18,6 +18,7 @@ import (
 	_ "github.com/thanhenti/bepilot/docs" // generated OpenAPI docs (make swag)
 	"github.com/thanhenti/bepilot/internal/api"
 	"github.com/thanhenti/bepilot/internal/config"
+	"github.com/thanhenti/bepilot/internal/docjobs"
 	"github.com/thanhenti/bepilot/internal/document"
 	"github.com/thanhenti/bepilot/internal/logging"
 	"github.com/thanhenti/bepilot/internal/server"
@@ -118,13 +119,20 @@ func main() {
 	ag := agent.New(st.Agent(), registry, toolReg, skillSvc, cfg.Agent.Config, cfg.LLM, log)
 
 	var docSvc *document.Service
+	var docJobs *docjobs.Pool
 	if cfg.Docs.Enabled {
 		if docSvc, err = document.New(cfg.Docs); err != nil {
 			log.Error("document service init failed", "err", err)
 			os.Exit(1)
 		}
 		defer docSvc.Close()
-		log.Info("documents enabled", "render_mode", cfg.Docs.RenderMode, "ocr", cfg.Docs.OCR.BaseURL, "vlm", cfg.Docs.VLM.Model)
+		log.Info("documents enabled", "render_mode", cfg.Docs.RenderMode, "ocr", cfg.Docs.OCR.BaseURL, "vlm", cfg.Docs.VLM.Model,
+			"number_check", cfg.Docs.VLM.NumberCheck, "workers", cfg.Docs.Workers)
+		docJobs = docjobs.New(st.Library, docSvc, cfg.Docs, log)
+		jobsDone := make(chan struct{})
+		go func() { docJobs.Run(ctx); close(jobsDone) }()
+		// Workers hand their documents back before the renderer closes.
+		defer func() { <-jobsDone }()
 	}
 
 	handlers := &api.Handlers{
@@ -138,6 +146,9 @@ func main() {
 		LLM:       cfg.LLM,
 		Agentcfg:  cfg.Agent,
 		Log:       log,
+	}
+	if docJobs != nil {
+		handlers.Jobs = docJobs
 	}
 
 	hz := server.New(cfg.HTTP, handlers, log)

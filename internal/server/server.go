@@ -58,7 +58,13 @@ func New(cfg appcfg.HTTP, h *api.Handlers, log *slog.Logger) *server.Hertz {
 	{
 		v1.POST("/messages", h.Messages)
 
-		// Documents: read PDFs and images with docpipe, alone or for the agent.
+		// Documents: uploaded and read in the background, then asked about on
+		// a session; /parse reads one file synchronously.
+		v1.POST("/documents", h.UploadDocument)
+		v1.GET("/documents", h.ListDocuments)
+		v1.GET("/documents/:id", h.GetDocument)
+		v1.GET("/documents/:id/pages", h.ListDocumentPages)
+		v1.DELETE("/documents/:id", h.DeleteDocument)
 		v1.POST("/documents/parse", h.ParseDocument)
 		v1.POST("/documents/messages", h.DocumentMessages)
 

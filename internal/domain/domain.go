@@ -110,6 +110,49 @@ type DocumentRequest struct {
 	UpdatedAt          time.Time
 }
 
+// Statuses of an uploaded Document (DocumentProcessing is shared with
+// DocumentRequest).
+const (
+	DocumentPending = "pending"
+	DocumentReady   = "ready"
+	DocumentFailed  = "failed"
+)
+
+// Document is a file uploaded to /v1/documents and read in the background,
+// page by page. Data is only loaded when the file is read.
+type Document struct {
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	Name              string
+	MediaType         string
+	Size              int64
+	SHA256            string
+	Data              []byte
+	Status            string
+	PagesTotal        int
+	PagesDone         int
+	FailedPages       int
+	UnverifiedNumbers int
+	TokenCount        int
+	Error             string
+	Attempts          int
+	FinishedAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+// DocumentPage is what was read from one page of a Document.
+type DocumentPage struct {
+	DocumentID uuid.UUID
+	PageNo     int
+	Markdown   string
+	OCRText    string
+	Numbers    any // the number check (json), nil when it did not run
+	Unverified int
+	Error      string
+	Tokens     int
+}
+
 // DocumentFile is one file uploaded with a DocumentRequest.
 type DocumentFile struct {
 	ID        uuid.UUID

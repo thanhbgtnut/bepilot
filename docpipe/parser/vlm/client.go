@@ -36,6 +36,19 @@ type Request struct {
 	JPEG   []byte
 	// PageNo is the page the image shows (logging and tests).
 	PageNo int
+	// History holds earlier turns of the same conversation, sent before the
+	// prompt. A follow-up question about a page repeats the first turn byte
+	// for byte (same prompt, same JPEG, the model's verbatim answer), so a
+	// server with prefix caching does not read the image again. JPEG may be
+	// nil on a follow-up that adds no image.
+	History []Turn
+}
+
+// Turn is one earlier message of a conversation.
+type Turn struct {
+	Role string // "user" or "assistant"
+	Text string
+	JPEG []byte // user turns only
 }
 
 // Transcriber answers one Request; the container wires it to the agent.
@@ -54,6 +67,12 @@ type Transcription struct {
 	CompletionTokens int               `json:"completion_tokens,omitempty"`
 	// Truncated is set when the model stopped at max_tokens.
 	Truncated bool `json:"truncated,omitempty"`
+	// Raw is the answer exactly as the model sent it (before the front matter
+	// is split off): what a follow-up turn must repeat as the assistant turn.
+	Raw string `json:"-"`
+	// CachedTokens is the part of the prompt the server reused from its
+	// prefix cache, when it reports it.
+	CachedTokens int `json:"cached_tokens,omitempty"`
 }
 
 // PermanentError marks a failure a retry cannot fix (bad request, unknown

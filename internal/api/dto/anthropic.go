@@ -33,6 +33,10 @@ type MessagesRequest struct {
 type Metadata struct {
 	UserID    string `json:"user_id,omitempty"`
 	SessionID string `json:"session_id,omitempty"` // bepilot extension
+	// DocumentIDs (bepilot extension) attaches uploaded documents
+	// (POST /v1/documents) to the session. Every turn of a session with
+	// documents gets their full text; later turns need not repeat the ids.
+	DocumentIDs []string `json:"document_ids,omitempty"`
 }
 
 // InputMessage is one entry of the request messages array.

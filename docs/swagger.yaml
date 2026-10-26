@@ -74,6 +74,64 @@ definitions:
       id:
         type: string
     type: object
+  dto.Document:
+    properties:
+      attempts:
+        example: 1
+        type: integer
+      created_at:
+        type: string
+      error:
+        type: string
+      failed_pages:
+        description: pages that could not be read (ready documents)
+        example: 0
+        type: integer
+      finished_at:
+        type: string
+      id:
+        example: 6f1c2b6e-0f6a-4b8e-9f0e-0d4d2b7f3a11
+        type: string
+      media_type:
+        example: application/pdf
+        type: string
+      name:
+        example: bctc-q3-2025.pdf
+        type: string
+      pages_done:
+        description: pages read so far
+        example: 23
+        type: integer
+      pages_total:
+        description: 0 until the file is opened
+        example: 50
+        type: integer
+      size_bytes:
+        example: 482113
+        type: integer
+      status:
+        description: Status is pending (waiting for a worker), processing, ready or
+          failed.
+        enum:
+        - pending
+        - processing
+        - ready
+        - failed
+        example: processing
+        type: string
+      token_count:
+        description: approximate tokens of the full text (ready documents)
+        example: 0
+        type: integer
+      unverified_numbers:
+        description: |-
+          UnverifiedNumbers counts numbers the vision model and OCR read
+          differently and that were not confirmed; each is noted in its page.
+        example: 0
+        type: integer
+      updated_at:
+        type: string
+    type: object
   dto.DocumentInfo:
     properties:
       failed_pages:
@@ -93,40 +151,16 @@ definitions:
         example: 482113
         type: integer
     type: object
-  dto.DocumentMessageResponse:
+  dto.DocumentList:
     properties:
-      content:
+      data:
         items:
-          $ref: '#/definitions/dto.OutputBlock'
+          $ref: '#/definitions/dto.Document'
         type: array
-      documents:
-        description: bepilot extension
-        items:
-          $ref: '#/definitions/dto.DocumentInfo'
-        type: array
-      id:
+      has_more:
+        type: boolean
+      next_cursor:
         type: string
-      model:
-        type: string
-      request_id:
-        description: bepilot extension
-        type: string
-      role:
-        description: '"assistant"'
-        type: string
-      session:
-        allOf:
-        - $ref: '#/definitions/dto.SessionBrief'
-        description: bepilot extension
-      stop_reason:
-        type: string
-      stop_sequence:
-        type: string
-      type:
-        description: '"message"'
-        type: string
-      usage:
-        $ref: '#/definitions/dto.Usage'
     type: object
   dto.DocumentPage:
     properties:
@@ -142,6 +176,27 @@ definitions:
         description: |-
           Text is the plain OCR text of the page (only on /v1/documents/messages
           records; the parse response leaves it out).
+        type: string
+    type: object
+  dto.DocumentPages:
+    properties:
+      document:
+        $ref: '#/definitions/dto.Document'
+      pages:
+        items:
+          $ref: '#/definitions/dto.StoredPage'
+        type: array
+    type: object
+  dto.DocumentsAccepted:
+    properties:
+      documents:
+        items:
+          $ref: '#/definitions/dto.Document'
+        type: array
+      session:
+        $ref: '#/definitions/dto.SessionBrief'
+      type:
+        example: documents_accepted
         type: string
     type: object
   dto.ErrorResponse:
@@ -292,6 +347,14 @@ definitions:
     type: object
   dto.Metadata:
     properties:
+      document_ids:
+        description: |-
+          DocumentIDs (bepilot extension) attaches uploaded documents
+          (POST /v1/documents) to the session. Every turn of a session with
+          documents gets their full text; later turns need not repeat the ids.
+        items:
+          type: string
+        type: array
       session_id:
         description: bepilot extension
         type: string
@@ -479,6 +542,33 @@ definitions:
         description: '"steered"'
         type: string
     type: object
+  dto.StoredPage:
+    properties:
+      error:
+        type: string
+      markdown:
+        description: |-
+          Markdown is the page text given to the agent. Numbers the vision
+          model and OCR disagree on, and that were not confirmed, are listed
+          in a trailing <!-- unverified numbers: … --> comment.
+        type: string
+      numbers:
+        description: |-
+          Numbers is the number check of the page: conflicts found, the vision
+          model's answers and what stays unverified.
+        type: object
+      ocr_text:
+        type: string
+      page_no:
+        example: 12
+        type: integer
+      tokens:
+        example: 1200
+        type: integer
+      unverified:
+        example: 0
+        type: integer
+    type: object
   dto.TaskResultDTO:
     properties:
       result:
@@ -516,6 +606,73 @@ definitions:
         additionalProperties: {}
         type: object
       title:
+        type: string
+    type: object
+  dto.UploadDocumentResponse:
+    properties:
+      attempts:
+        example: 1
+        type: integer
+      created_at:
+        type: string
+      duplicate:
+        description: |-
+          Duplicate is set when the user had already uploaded the same file: the
+          existing document is returned and not read again.
+        type: boolean
+      error:
+        type: string
+      failed_pages:
+        description: pages that could not be read (ready documents)
+        example: 0
+        type: integer
+      finished_at:
+        type: string
+      id:
+        example: 6f1c2b6e-0f6a-4b8e-9f0e-0d4d2b7f3a11
+        type: string
+      media_type:
+        example: application/pdf
+        type: string
+      name:
+        example: bctc-q3-2025.pdf
+        type: string
+      pages_done:
+        description: pages read so far
+        example: 23
+        type: integer
+      pages_total:
+        description: 0 until the file is opened
+        example: 50
+        type: integer
+      session:
+        allOf:
+        - $ref: '#/definitions/dto.SessionBrief'
+        description: the session the document was attached to
+      size_bytes:
+        example: 482113
+        type: integer
+      status:
+        description: Status is pending (waiting for a worker), processing, ready or
+          failed.
+        enum:
+        - pending
+        - processing
+        - ready
+        - failed
+        example: processing
+        type: string
+      token_count:
+        description: approximate tokens of the full text (ready documents)
+        example: 0
+        type: integer
+      unverified_numbers:
+        description: |-
+          UnverifiedNumbers counts numbers the vision model and OCR read
+          differently and that were not confirmed; each is noted in its page.
+        example: 0
+        type: integer
+      updated_at:
         type: string
     type: object
   dto.Usage:
@@ -601,32 +758,61 @@ paths:
       summary: Run an agent turn (AG-UI protocol)
       tags:
       - AG-UI
-  /v1/documents/messages:
-    post:
-      consumes:
-      - application/json
-      description: |-
-        The body is an Anthropic Messages request. The last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is read with docpipe (markdown and OCR text per page), and the agent answers the question with the documents in its context. The response is the same as `/v1/messages`: with `stream: true` (or `Accept: text/event-stream`) Anthropic SSE frames, preceded by a `document_parsed` extension event once the files are read (`ping` frames keep the stream open while they are); otherwise a single JSON message, plus `request_id` and `documents`.
-        The turn is stored in the session like any other (`metadata.session_id` continues one), so later `/v1/messages` calls on that session can ask about the same documents. The request, the files, what was read and the response are stored (`document_requests`, `document_files`).
+  /v1/documents:
+    get:
       parameters:
-      - description: Anthropic Messages request with document / image blocks
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.MessagesRequest'
+      - default: 30
+        description: Page size (1-100)
+        in: query
+        name: limit
+        type: integer
+      - description: Opaque cursor from a previous response's next_cursor
+        in: query
+        name: cursor
+        type: string
       produces:
       - application/json
-      - text/event-stream
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/dto.DocumentMessageResponse'
+            $ref: '#/definitions/dto.DocumentList'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List the authenticated user's documents
+      tags:
+      - Documents
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Stores one file (PDF, JPEG, PNG or TIFF) and answers at once with `202` and the document in status `pending`; the file is read in the background, page by page. Poll `GET /v1/documents/{id}` for the progress (`pages_done` / `pages_total`) until the status is `ready` (or `failed`). Every page is read by OCR and, when a vision model is configured, by it as well; numbers the two readings disagree on are put back to the vision model, replaced only when it is sure, and otherwise noted as unverified in the page.
+        The same file uploaded again by the same user returns the existing document (`duplicate: true`, status `200`) without reading it again; one that had failed is queued again. With `session_id`, the document is attached to that session: every question asked on the session then gets the full text of its documents.
+      parameters:
+      - description: PDF or image (JPEG, PNG, TIFF)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Session to attach the document to
+        in: formData
+        name: session_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: the same file was already uploaded
+          schema:
+            $ref: '#/definitions/dto.UploadDocumentResponse'
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/dto.SteeredResponse'
+            $ref: '#/definitions/dto.UploadDocumentResponse'
         "400":
           description: Bad Request
           schema:
@@ -647,8 +833,158 @@ paths:
           description: Request Entity Too Large
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
-        "502":
-          description: Bad Gateway
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Upload a document to be read in the background
+      tags:
+      - Documents
+  /v1/documents/{id}:
+    delete:
+      description: Deletes the document, its pages and its links to sessions. A document
+        being read stops being read.
+      parameters:
+      - description: Document id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a document
+      tags:
+      - Documents
+    get:
+      parameters:
+      - description: Document id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.Document'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get a document's status and progress
+      tags:
+      - Documents
+  /v1/documents/{id}/pages:
+    get:
+      description: 'Returns the pages read so far (all of them once the document is
+        ready): the markdown given to the agent, the OCR text and the number check
+        of each page.'
+      parameters:
+      - description: Document id
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: First page (1-based)
+        in: query
+        name: from
+        type: integer
+      - description: Last page
+        in: query
+        name: to
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DocumentPages'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get what was read from a document's pages
+      tags:
+      - Documents
+  /v1/documents/messages:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        The body is an Anthropic Messages request whose last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is stored as a document (as `POST /v1/documents` does; the same file uploaded before is reused) and attached to the session (`metadata.session_id`, or a new session titled from the question). The files are read in the background.
+        With `stream: true` (or `Accept: text/event-stream`) the stream stays open while the files are read, sending `document_progress` events (and `ping` frames), then answers like `/v1/messages`: the agent gets the full text of every document of the session. Without streaming, the answer is `202` with the documents and the session as soon as the files are stored; ask on the session with `/v1/messages` once they are `ready` (a session whose documents are all ready already is answered at once, `200`). The documents stay attached: later questions on the session need not send them again.
+      parameters:
+      - description: Anthropic Messages request with document / image blocks
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.MessagesRequest'
+      produces:
+      - application/json
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dto.DocumentsAccepted'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
         "503":
@@ -657,7 +993,7 @@ paths:
             $ref: '#/definitions/dto.ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Ask the agent about PDFs and images (streaming or buffered)
+      summary: Send files and a question in one request
       tags:
       - Documents
   /v1/documents/parse:
@@ -815,6 +1151,7 @@ paths:
       description: |-
         Runs one agent turn. With `stream: true` (or `Accept: text/event-stream`) the response is Server-Sent Events using Anthropic frame types (`message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`, `ping`, `error`) plus the extension events `tool_execution_start` / `tool_execution_stop`. `message_start.message.session_id` is a bepilot extension carrying the session the turn was persisted under — capture it (when `metadata.session_id` was omitted, a new session is created) and pass it back as `metadata.session_id` on the next call to continue the conversation. Otherwise a single JSON message is returned, whose `session` field carries the same information.
         A session runs one turn at a time, but a message never has to wait for it. If a turn is already running on the session, the new message is handed to that turn, which reads it before its next step: the response is `202` with `{"type":"steered"}` (or, when streaming, a single `steered` event) and the reply arrives on the stream of the turn that is running. A short stop message ("stop", "dừng", "hủy") instead interrupts the running turn, which keeps what it produced and ends with `stop_reason: "interrupted"`, and the message then runs as a normal turn.
+        Documents: `metadata.document_ids` attaches uploaded documents (`POST /v1/documents`) to the session. Every turn of a session with documents gives the agent the full text of every page of every document, in the system prompt (never in the stored history), and runs at temperature 0 unless the request sets one. While a document is still being read, a streamed request waits for it, sending `document_progress` events; a buffered one gets `409`. A failed document gives `422`; a turn that would not fit the model's context window (`documents.context_window`) gives `413`.
       parameters:
       - description: Message request
         in: body
@@ -848,6 +1185,18 @@ paths:
             $ref: '#/definitions/dto.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/dto.ErrorResponse'
       security:

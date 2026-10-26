@@ -55,6 +55,17 @@ type Page struct {
 	Markdown string `json:"markdown"`
 	Text     string `json:"text"`
 	Error    string `json:"error,omitempty"`
+	// Numbers is the check of the markdown's numbers against the OCR text
+	// (documents.vlm.number_check); nil when it did not run.
+	Numbers *vlm.NumberReport `json:"numbers,omitempty"`
+}
+
+// Unverified is how many numbers of the page are still in doubt.
+func (p Page) Unverified() int {
+	if p.Numbers == nil {
+		return 0
+	}
+	return len(p.Numbers.Unverified)
 }
 
 // Result is what was read from one file.
@@ -87,11 +98,13 @@ func (r Result) Failed() int {
 
 // Service reads documents. It is safe for concurrent use.
 type Service struct {
-	renderer *pdf.Renderer
-	pipe     *docpipe.Pipeline
-	engine   parser.Engine
-	opts     parser.PageOptions
-	tmpDir   string
+	renderer    *pdf.Renderer
+	render      pdf.RenderOptions
+	concurrency int
+	pipe        *docpipe.Pipeline
+	engine      parser.Engine
+	opts        parser.PageOptions
+	tmpDir      string
 }
 
 // New builds the renderer, the OCR engine (with the VLM step when
@@ -106,6 +119,9 @@ func New(cfg config.Documents) (*Service, error) {
 		engine, err = vlm.New(vlm.Config{
 			Layout: engine,
 			Client: vlm.NewOpenAI(vlm.OpenAIConfig{BaseURL: cfg.VLM.BaseURL, APIKey: cfg.VLM.APIKey, Model: cfg.VLM.Model, Timeout: cfg.VLM.Timeout}),
+
+			NumberCheck:   cfg.VLM.NumberCheck,
+			ConfirmPrompt: cfg.VLM.ConfirmPrompt,
 		})
 		if err != nil {
 			renderer.Close()
@@ -122,7 +138,14 @@ func New(cfg config.Documents) (*Service, error) {
 		renderer.Close()
 		return nil, err
 	}
-	return &Service{renderer: renderer, pipe: pipe, engine: engine, opts: opts, tmpDir: os.TempDir()}, nil
+	concurrency := cfg.Concurrency
+	if concurrency <= 0 {
+		concurrency = 4
+	}
+	if render == (pdf.RenderOptions{}) {
+		render = pdf.RenderOptions{DPI: 300, MaxLongSide: 4000, MaxPixels: 16_000_000, JPEGQuality: 85}
+	}
+	return &Service{renderer: renderer, render: render, concurrency: concurrency, pipe: pipe, engine: engine, opts: opts, tmpDir: os.TempDir()}, nil
 }
 
 // Close releases the PDF renderer.
@@ -167,7 +190,7 @@ func (s *Service) parsePDF(ctx context.Context, data []byte) (Result, error) {
 	}
 	out := Result{MediaType: TypePDF, Pages: make([]Page, len(res.Pages))}
 	for i, pg := range res.Pages {
-		out.Pages[i] = page(pg.PageNo, pg.Parsed, pg.OCRErr)
+		out.Pages[i] = page(pg.PageNo, pg.Parsed, pg.Raw, pg.OCRErr)
 	}
 	return out, nil
 }
@@ -182,15 +205,22 @@ func (s *Service) parseImage(ctx context.Context, mediaType string, data []byte)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return Result{}, ctxErr
 	}
-	var parsed *types.ParsedPage
-	if err == nil {
-		parsed = assemble.Build(raw, assemble.Options{PageNo: 1, Engine: s.engine.Name(), ReadingOrderFix: true, LowConfThreshold: 0.6})
-		assemble.Render(parsed)
-	}
-	return Result{MediaType: mediaType, Pages: []Page{page(1, parsed, err)}}, nil
+	return Result{MediaType: mediaType, Pages: []Page{s.readPage(raw, 1, 0, err)}}, nil
 }
 
-func page(no int, parsed *types.ParsedPage, err error) Page {
+// readPage assembles the engine output of one page.
+func (s *Service) readPage(raw *parser.RawPage, no int, dpi float64, err error) Page {
+	if err != nil {
+		return page(no, nil, nil, err)
+	}
+	parsed := assemble.Build(raw, assemble.Options{PageNo: no, DPI: dpi, Engine: s.engine.Name(), ReadingOrderFix: true, LowConfThreshold: 0.6})
+	assemble.Render(parsed)
+	return page(no, parsed, raw.Raw, nil)
+}
+
+// page is what was read from one page. Numbers the VLM and OCR disagree on
+// and that were not settled are noted at the end of the markdown.
+func page(no int, parsed *types.ParsedPage, raw []byte, err error) Page {
 	if err != nil || parsed == nil {
 		msg := "page could not be read"
 		if err != nil {
@@ -198,8 +228,16 @@ func page(no int, parsed *types.ParsedPage, err error) Page {
 		}
 		return Page{PageNo: no, Error: msg}
 	}
-	return Page{PageNo: no, Markdown: parsed.Markdown, Text: assemble.PlainText(parsed)}
+	p := Page{PageNo: no, Markdown: parsed.Markdown, Text: assemble.PlainText(parsed), Numbers: vlm.PageNumbers(raw)}
+	if note := p.Numbers.Note(); note != "" {
+		p.Markdown = strings.TrimRight(p.Markdown, "\n") + "\n\n" + note
+	}
+	return p
 }
+
+// EstimateTokens is the approximate number of model tokens of s (about four
+// bytes a token, as the agent counts history).
+func EstimateTokens(s string) int { return (len(s) + 3) / 4 }
 
 // Detect returns the media type of data from its content, or "" when it is
 // not one the service reads.

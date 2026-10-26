@@ -21,6 +21,7 @@ import (
 	"github.com/thanhenti/bepilot/agentcore/tools"
 	"github.com/thanhenti/bepilot/internal/api"
 	"github.com/thanhenti/bepilot/internal/config"
+	"github.com/thanhenti/bepilot/internal/docjobs"
 	"github.com/thanhenti/bepilot/internal/document"
 	"github.com/thanhenti/bepilot/internal/logging"
 	"github.com/thanhenti/bepilot/internal/server"
@@ -95,15 +96,22 @@ func setup(t *testing.T) *testEnv {
 
 	docsCfg := config.Documents{
 		Enabled: true, RenderMode: "webassembly", RenderWorkers: 1, DPI: 50, Concurrency: 2, MaxFileMB: 8, MaxFiles: 3,
-		OCR: config.DocumentOCR{BaseURL: fakeOCR(t).URL, Timeout: 10 * time.Second},
+		OCR:     config.DocumentOCR{BaseURL: fakeOCR(t).URL, Timeout: 10 * time.Second},
+		Workers: 2, Lease: 30 * time.Second, MaxAttempts: 2, PollInterval: 100 * time.Millisecond, WaitTimeout: 30 * time.Second,
 	}
 	docSvc, err := document.New(docsCfg)
 	if err != nil {
 		t.Fatalf("document service: %v", err)
 	}
+	jobs := docjobs.New(st.Library, docSvc, docsCfg, log)
+	jobsDone := make(chan struct{})
+	go func() { jobs.Run(ctx); close(jobsDone) }()
+	// Cleanups run last-in first-out: the workers stop before the renderer
+	// closes.
 	t.Cleanup(docSvc.Close)
+	t.Cleanup(func() { cancel(); <-jobsDone })
 
-	h := &api.Handlers{Store: st, Agent: ag, Registry: reg, Skills: skillSvc, LLM: lcfg, Agentcfg: acfg, Documents: docSvc, Docs: docsCfg, Log: log}
+	h := &api.Handlers{Store: st, Agent: ag, Registry: reg, Skills: skillSvc, LLM: lcfg, Agentcfg: acfg, Documents: docSvc, Jobs: jobs, Docs: docsCfg, Log: log}
 
 	// pick a free port
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -133,7 +141,7 @@ func setup(t *testing.T) *testEnv {
 
 func truncate(t *testing.T, st *store.Store) {
 	_, err := st.Pool.Exec(context.Background(),
-		`TRUNCATE users, api_keys, sessions, messages, content_blocks, agent_runs, task_results, document_requests, document_files RESTART IDENTITY CASCADE`)
+		`TRUNCATE users, api_keys, sessions, messages, content_blocks, agent_runs, task_results, document_requests, document_files, library_documents, library_pages, session_documents RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatalf("truncate: %v", err)
 	}

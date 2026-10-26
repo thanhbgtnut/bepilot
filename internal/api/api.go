@@ -29,10 +29,13 @@ type Handlers struct {
 	// Documents reads uploaded files for /v1/documents/*; nil when
 	// documents.enabled is false (the endpoints answer 503).
 	Documents *document.Service
-	Docs      config.Documents
-	LLM       config.LLM
-	Agentcfg  config.AgentCfg
-	Log       *slog.Logger
+	// Jobs wakes the background readers when a document is uploaded; nil
+	// leaves them to their polling.
+	Jobs     interface{ Notify() }
+	Docs     config.Documents
+	LLM      config.LLM
+	Agentcfg config.AgentCfg
+	Log      *slog.Logger
 }
 
 func (h *Handlers) badRequest(c *app.RequestContext, msg string) {

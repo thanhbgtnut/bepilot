@@ -22,6 +22,7 @@ import (
 // @Summary     Create a message (streaming or buffered)
 // @Description Runs one agent turn. With `stream: true` (or `Accept: text/event-stream`) the response is Server-Sent Events using Anthropic frame types (`message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`, `ping`, `error`) plus the extension events `tool_execution_start` / `tool_execution_stop`. `message_start.message.session_id` is a bepilot extension carrying the session the turn was persisted under — capture it (when `metadata.session_id` was omitted, a new session is created) and pass it back as `metadata.session_id` on the next call to continue the conversation. Otherwise a single JSON message is returned, whose `session` field carries the same information.
 // @Description A session runs one turn at a time, but a message never has to wait for it. If a turn is already running on the session, the new message is handed to that turn, which reads it before its next step: the response is `202` with `{"type":"steered"}` (or, when streaming, a single `steered` event) and the reply arrives on the stream of the turn that is running. A short stop message ("stop", "dừng", "hủy") instead interrupts the running turn, which keeps what it produced and ends with `stop_reason: "interrupted"`, and the message then runs as a normal turn.
+// @Description Documents: `metadata.document_ids` attaches uploaded documents (`POST /v1/documents`) to the session. Every turn of a session with documents gives the agent the full text of every page of every document, in the system prompt (never in the stored history), and runs at temperature 0 unless the request sets one. While a document is still being read, a streamed request waits for it, sending `document_progress` events; a buffered one gets `409`. A failed document gives `422`; a turn that would not fit the model's context window (`documents.context_window`) gives `413`.
 // @Tags        Messages
 // @Accept      json
 // @Produce     json
@@ -33,6 +34,9 @@ import (
 // @Failure     401      {object}  dto.ErrorResponse
 // @Failure     403      {object}  dto.ErrorResponse
 // @Failure     404      {object}  dto.ErrorResponse
+// @Failure     409      {object}  dto.ErrorResponse
+// @Failure     413      {object}  dto.ErrorResponse
+// @Failure     422      {object}  dto.ErrorResponse
 // @Security    ApiKeyAuth
 // @Router      /v1/messages [post]
 func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
@@ -56,6 +60,14 @@ func (h *Handlers) Messages(ctx context.Context, c *app.RequestContext) {
 
 	in, ok := h.turnInput(ctx, c, user, req, userText, userText)
 	if !ok {
+		return
+	}
+	docs, ok := h.sessionDocuments(ctx, c, user, in.Session, req)
+	if !ok {
+		return
+	}
+	if len(docs) > 0 {
+		h.documentTurn(ctx, c, user, in, docs, wantsStream(c, req))
 		return
 	}
 	if wantsStream(c, req) {

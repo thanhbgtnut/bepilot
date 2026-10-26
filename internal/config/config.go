@@ -79,6 +79,32 @@ type Documents struct {
 	MaxFiles int         `yaml:"max_files"`
 	OCR      DocumentOCR `yaml:"ocr"`
 	VLM      DocumentVLM `yaml:"vlm"`
+
+	// Workers is how many uploaded documents (/v1/documents) are read in the
+	// background at once (default 2). A worker holds a document for Lease
+	// (default 2m), renewed while it works; a document whose lease ran out is
+	// taken over by another worker, which reads only the pages still missing.
+	// A document that fails is retried MaxAttempts times (default 3).
+	Workers      int           `yaml:"workers"`
+	Lease        time.Duration `yaml:"lease"`
+	MaxAttempts  int           `yaml:"max_attempts"`
+	PollInterval time.Duration `yaml:"poll_interval"` // default 2s
+	// WaitTimeout is how long a streamed question waits for the documents of
+	// its session to be read (default 15m).
+	WaitTimeout time.Duration `yaml:"wait_timeout"`
+	// ContextWindow is the model context, in tokens, a question with
+	// documents must fit in; ContextWindows overrides it per model. 0 skips
+	// the check.
+	ContextWindow  int            `yaml:"context_window"`
+	ContextWindows map[string]int `yaml:"context_windows"`
+}
+
+// ContextWindowFor returns the context window configured for model, or 0.
+func (d Documents) ContextWindowFor(model string) int {
+	if n, ok := d.ContextWindows[model]; ok {
+		return n
+	}
+	return d.ContextWindow
 }
 
 // DocumentOCR is the TurboOCR server (POST /ocr/raw).
@@ -94,6 +120,13 @@ type DocumentVLM struct {
 	APIKey  string        `yaml:"api_key"`
 	Model   string        `yaml:"model"`
 	Timeout time.Duration `yaml:"timeout"`
+	// NumberCheck compares the numbers of the VLM markdown with the OCR
+	// text: off (default), detect (mark conflicts unverified) or confirm
+	// (ask the VLM about them in the same conversation; replace only when it
+	// is sure). ConfirmPrompt overrides the follow-up question (%s is the
+	// list of conflicts).
+	NumberCheck   string `yaml:"number_check"`
+	ConfirmPrompt string `yaml:"confirm_prompt"`
 }
 
 // HTTP holds the Hertz server settings.
@@ -260,6 +293,11 @@ func (c *Config) applyDefaults() {
 		setInt(&c.Docs.MaxFiles, 5)
 		setDuration(&c.Docs.OCR.Timeout, 2*time.Minute)
 		setDuration(&c.Docs.VLM.Timeout, 5*time.Minute)
+		setInt(&c.Docs.Workers, 2)
+		setDuration(&c.Docs.Lease, 2*time.Minute)
+		setInt(&c.Docs.MaxAttempts, 3)
+		setDuration(&c.Docs.PollInterval, 2*time.Second)
+		setDuration(&c.Docs.WaitTimeout, 15*time.Minute)
 	}
 
 	setString(&c.Log.Level, "info")
