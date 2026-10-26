@@ -113,47 +113,93 @@
                 }
             }
         },
-        "/v1/documents/messages": {
-            "post": {
+        "/v1/documents": {
+            "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "The body is an Anthropic Messages request. The last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is read with docpipe (markdown and OCR text per page), and the agent answers the question with the documents in its context. The response is the same as `/v1/messages`: with `stream: true` (or `Accept: text/event-stream`) Anthropic SSE frames, preceded by a `document_parsed` extension event once the files are read (`ping` frames keep the stream open while they are); otherwise a single JSON message, plus `request_id` and `documents`.\nThe turn is stored in the session like any other (`metadata.session_id` continues one), so later `/v1/messages` calls on that session can ask about the same documents. The request, the files, what was read and the response are stored (`document_requests`, `document_files`).",
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
-                    "application/json",
-                    "text/event-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "Documents"
                 ],
-                "summary": "Ask the agent about PDFs and images (streaming or buffered)",
+                "summary": "List the authenticated user's documents",
                 "parameters": [
                     {
-                        "description": "Anthropic Messages request with document / image blocks",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.MessagesRequest"
-                        }
+                        "type": "integer",
+                        "default": 30,
+                        "description": "Page size (1-100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Opaque cursor from a previous response's next_cursor",
+                        "name": "cursor",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/dto.DocumentMessageResponse"
+                            "$ref": "#/definitions/dto.DocumentList"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Stores one file (PDF, JPEG, PNG or TIFF) and answers at once with `202` and the document in status `pending`; the file is read in the background, page by page. Poll `GET /v1/documents/{id}` for the progress (`pages_done` / `pages_total`) until the status is `ready` (or `failed`). Every page is read by OCR and, when a vision model is configured, by it as well; numbers the two readings disagree on are put back to the vision model, replaced only when it is sure, and otherwise noted as unverified in the page.\nThe same file uploaded again by the same user returns the existing document (`duplicate: true`, status `200`) without reading it again; one that had failed is queued again. With `session_id`, the document is attached to that session: every question asked on the session then gets the full text of its documents.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Upload a document to be read in the background",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "PDF or image (JPEG, PNG, TIFF)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Session to attach the document to",
+                        "name": "session_id",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "the same file was already uploaded",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadDocumentResponse"
                         }
                     },
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/dto.SteeredResponse"
+                            "$ref": "#/definitions/dto.UploadDocumentResponse"
                         }
                     },
                     "400": {
@@ -186,8 +232,90 @@
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
                     },
-                    "502": {
-                        "description": "Bad Gateway",
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/documents/messages": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "The body is an Anthropic Messages request whose last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is stored as a document (as `POST /v1/documents` does; the same file uploaded before is reused) and attached to the session (`metadata.session_id`, or a new session titled from the question). The files are read in the background.\nWith `stream: true` (or `Accept: text/event-stream`) the stream stays open while the files are read, sending `document_progress` events (and `ping` frames), then answers like `/v1/messages`: the agent gets the full text of every document of the session. Without streaming, the answer is `202` with the documents and the session as soon as the files are stored; ask on the session with `/v1/messages` once they are `ready` (a session whose documents are all ready already is answered at once, `200`). The documents stay attached: later questions on the session need not send them again.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Send files and a question in one request",
+                "parameters": [
+                    {
+                        "description": "Anthropic Messages request with document / image blocks",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.MessagesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.MessageResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DocumentsAccepted"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -261,6 +389,150 @@
                     },
                     "503": {
                         "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/documents/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Get a document's status and progress",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Document id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.Document"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Deletes the document, its pages and its links to sessions. A document being read stops being read.",
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Delete a document",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Document id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/documents/{id}/pages": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the pages read so far (all of them once the document is ready): the markdown given to the agent, the OCR text and the number check of each page.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Get what was read from a document's pages",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Document id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "First page (1-based)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Last page",
+                        "name": "to",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DocumentPages"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -434,7 +706,7 @@
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Runs one agent turn. With `stream: true` (or `Accept: text/event-stream`) the response is Server-Sent Events using Anthropic frame types (`message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`, `ping`, `error`) plus the extension events `tool_execution_start` / `tool_execution_stop`. `message_start.message.session_id` is a bepilot extension carrying the session the turn was persisted under — capture it (when `metadata.session_id` was omitted, a new session is created) and pass it back as `metadata.session_id` on the next call to continue the conversation. Otherwise a single JSON message is returned, whose `session` field carries the same information.\nA session runs one turn at a time, but a message never has to wait for it. If a turn is already running on the session, the new message is handed to that turn, which reads it before its next step: the response is `202` with `{\"type\":\"steered\"}` (or, when streaming, a single `steered` event) and the reply arrives on the stream of the turn that is running. A short stop message (\"stop\", \"dừng\", \"hủy\") instead interrupts the running turn, which keeps what it produced and ends with `stop_reason: \"interrupted\"`, and the message then runs as a normal turn.",
+                "description": "Runs one agent turn. With `stream: true` (or `Accept: text/event-stream`) the response is Server-Sent Events using Anthropic frame types (`message_start`, `content_block_start`, `content_block_delta`, `content_block_stop`, `message_delta`, `message_stop`, `ping`, `error`) plus the extension events `tool_execution_start` / `tool_execution_stop`. `message_start.message.session_id` is a bepilot extension carrying the session the turn was persisted under — capture it (when `metadata.session_id` was omitted, a new session is created) and pass it back as `metadata.session_id` on the next call to continue the conversation. Otherwise a single JSON message is returned, whose `session` field carries the same information.\nA session runs one turn at a time, but a message never has to wait for it. If a turn is already running on the session, the new message is handed to that turn, which reads it before its next step: the response is `202` with `{\"type\":\"steered\"}` (or, when streaming, a single `steered` event) and the reply arrives on the stream of the turn that is running. A short stop message (\"stop\", \"dừng\", \"hủy\") instead interrupts the running turn, which keeps what it produced and ends with `stop_reason: \"interrupted\"`, and the message then runs as a normal turn.\nDocuments: `metadata.document_ids` attaches uploaded documents (`POST /v1/documents`) to the session. Every turn of a session with documents gives the agent the full text of every page of every document, in the system prompt (never in the stored history), and runs at temperature 0 unless the request sets one. While a document is still being read, a streamed request waits for it, sending `document_progress` events; a buffered one gets `409`. A failed document gives `422`; a turn that would not fit the model's context window (`documents.context_window`) gives `413`.",
                 "consumes": [
                     "application/json"
                 ],
@@ -490,6 +762,24 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -1046,6 +1336,79 @@
                 }
             }
         },
+        "dto.Document": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "failed_pages": {
+                    "description": "pages that could not be read (ready documents)",
+                    "type": "integer",
+                    "example": 0
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "6f1c2b6e-0f6a-4b8e-9f0e-0d4d2b7f3a11"
+                },
+                "media_type": {
+                    "type": "string",
+                    "example": "application/pdf"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "bctc-q3-2025.pdf"
+                },
+                "pages_done": {
+                    "description": "pages read so far",
+                    "type": "integer",
+                    "example": 23
+                },
+                "pages_total": {
+                    "description": "0 until the file is opened",
+                    "type": "integer",
+                    "example": 50
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "example": 482113
+                },
+                "status": {
+                    "description": "Status is pending (waiting for a worker), processing, ready or failed.",
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "processing",
+                        "ready",
+                        "failed"
+                    ],
+                    "example": "processing"
+                },
+                "token_count": {
+                    "description": "approximate tokens of the full text (ready documents)",
+                    "type": "integer",
+                    "example": 0
+                },
+                "unverified_numbers": {
+                    "description": "UnverifiedNumbers counts numbers the vision model and OCR read\ndifferently and that were not confirmed; each is noted in its page.",
+                    "type": "integer",
+                    "example": 0
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.DocumentInfo": {
             "type": "object",
             "properties": {
@@ -1072,56 +1435,20 @@
                 }
             }
         },
-        "dto.DocumentMessageResponse": {
+        "dto.DocumentList": {
             "type": "object",
             "properties": {
-                "content": {
+                "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.OutputBlock"
+                        "$ref": "#/definitions/dto.Document"
                     }
                 },
-                "documents": {
-                    "description": "bepilot extension",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/dto.DocumentInfo"
-                    }
+                "has_more": {
+                    "type": "boolean"
                 },
-                "id": {
+                "next_cursor": {
                     "type": "string"
-                },
-                "model": {
-                    "type": "string"
-                },
-                "request_id": {
-                    "description": "bepilot extension",
-                    "type": "string"
-                },
-                "role": {
-                    "description": "\"assistant\"",
-                    "type": "string"
-                },
-                "session": {
-                    "description": "bepilot extension",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/dto.SessionBrief"
-                        }
-                    ]
-                },
-                "stop_reason": {
-                    "type": "string"
-                },
-                "stop_sequence": {
-                    "type": "string"
-                },
-                "type": {
-                    "description": "\"message\"",
-                    "type": "string"
-                },
-                "usage": {
-                    "$ref": "#/definitions/dto.Usage"
                 }
             }
         },
@@ -1142,6 +1469,38 @@
                 "text": {
                     "description": "Text is the plain OCR text of the page (only on /v1/documents/messages\nrecords; the parse response leaves it out).",
                     "type": "string"
+                }
+            }
+        },
+        "dto.DocumentPages": {
+            "type": "object",
+            "properties": {
+                "document": {
+                    "$ref": "#/definitions/dto.Document"
+                },
+                "pages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.StoredPage"
+                    }
+                }
+            }
+        },
+        "dto.DocumentsAccepted": {
+            "type": "object",
+            "properties": {
+                "documents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.Document"
+                    }
+                },
+                "session": {
+                    "$ref": "#/definitions/dto.SessionBrief"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "documents_accepted"
                 }
             }
         },
@@ -1360,6 +1719,13 @@
         "dto.Metadata": {
             "type": "object",
             "properties": {
+                "document_ids": {
+                    "description": "DocumentIDs (bepilot extension) attaches uploaded documents\n(POST /v1/documents) to the session. Every turn of a session with\ndocuments gets their full text; later turns need not repeat the ids.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "session_id": {
                     "description": "bepilot extension",
                     "type": "string"
@@ -1640,6 +2006,37 @@
                 }
             }
         },
+        "dto.StoredPage": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "markdown": {
+                    "description": "Markdown is the page text given to the agent. Numbers the vision\nmodel and OCR disagree on, and that were not confirmed, are listed\nin a trailing \u003c!-- unverified numbers: … --\u003e comment.",
+                    "type": "string"
+                },
+                "numbers": {
+                    "description": "Numbers is the number check of the page: conflicts found, the vision\nmodel's answers and what stays unverified.",
+                    "type": "object"
+                },
+                "ocr_text": {
+                    "type": "string"
+                },
+                "page_no": {
+                    "type": "integer",
+                    "example": 12
+                },
+                "tokens": {
+                    "type": "integer",
+                    "example": 1200
+                },
+                "unverified": {
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
         "dto.TaskResultDTO": {
             "type": "object",
             "properties": {
@@ -1695,6 +2092,91 @@
                     "additionalProperties": {}
                 },
                 "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UploadDocumentResponse": {
+            "type": "object",
+            "properties": {
+                "attempts": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "duplicate": {
+                    "description": "Duplicate is set when the user had already uploaded the same file: the\nexisting document is returned and not read again.",
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "failed_pages": {
+                    "description": "pages that could not be read (ready documents)",
+                    "type": "integer",
+                    "example": 0
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "6f1c2b6e-0f6a-4b8e-9f0e-0d4d2b7f3a11"
+                },
+                "media_type": {
+                    "type": "string",
+                    "example": "application/pdf"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "bctc-q3-2025.pdf"
+                },
+                "pages_done": {
+                    "description": "pages read so far",
+                    "type": "integer",
+                    "example": 23
+                },
+                "pages_total": {
+                    "description": "0 until the file is opened",
+                    "type": "integer",
+                    "example": 50
+                },
+                "session": {
+                    "description": "the session the document was attached to",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SessionBrief"
+                        }
+                    ]
+                },
+                "size_bytes": {
+                    "type": "integer",
+                    "example": 482113
+                },
+                "status": {
+                    "description": "Status is pending (waiting for a worker), processing, ready or failed.",
+                    "type": "string",
+                    "enum": [
+                        "pending",
+                        "processing",
+                        "ready",
+                        "failed"
+                    ],
+                    "example": "processing"
+                },
+                "token_count": {
+                    "description": "approximate tokens of the full text (ready documents)",
+                    "type": "integer",
+                    "example": 0
+                },
+                "unverified_numbers": {
+                    "description": "UnverifiedNumbers counts numbers the vision model and OCR read\ndifferently and that were not confirmed; each is noted in its page.",
+                    "type": "integer",
+                    "example": 0
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

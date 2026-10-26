@@ -50,7 +50,13 @@ type Config struct {
 	// FullPage sends the page to the VLM without OCR text when the layout
 	// engine fails or finds nothing.
 	FullPage bool
-	Log      *slog.Logger
+	// NumberCheck compares the numbers of the markdown with the OCR text:
+	// NumbersOff (default), NumbersDetect or NumbersConfirm (see numbers.go).
+	// ConfirmPrompt is the follow-up question (default DefaultConfirmPrompt,
+	// %s is the list of conflicts).
+	NumberCheck   string
+	ConfirmPrompt string
+	Log           *slog.Logger
 }
 
 // Engine implements parser.Engine: step 1 reads the page with Config.Layout,
@@ -80,6 +86,16 @@ func New(cfg Config) (*Engine, error) {
 	if cfg.OnError == "" {
 		cfg.OnError = OnErrorFallback
 	}
+	switch cfg.NumberCheck {
+	case "":
+		cfg.NumberCheck = NumbersOff
+	case NumbersOff, NumbersDetect, NumbersConfirm:
+	default:
+		return nil, fmt.Errorf("vlm: number_check %q: want off, detect or confirm", cfg.NumberCheck)
+	}
+	if cfg.ConfirmPrompt == "" {
+		cfg.ConfirmPrompt = DefaultConfirmPrompt
+	}
 	if cfg.Log == nil {
 		cfg.Log = slog.Default()
 	}
@@ -105,6 +121,7 @@ type CallResult struct {
 	Ms               int               `json:"ms"`
 	PromptTokens     int               `json:"prompt_tokens,omitempty"`
 	CompletionTokens int               `json:"completion_tokens,omitempty"`
+	CachedTokens     int               `json:"cached_tokens,omitempty"`
 	Truncated        bool              `json:"truncated,omitempty"`
 	Meta             map[string]string `json:"meta,omitempty"`
 	Error            string            `json:"error,omitempty"`
@@ -122,7 +139,22 @@ type rawEnvelope struct {
 	Call        *CallResult     `json:"call,omitempty"`
 	Markdown    string          `json:"markdown,omitempty"`
 	Align       *AlignReport    `json:"align,omitempty"`
-	Ms          int             `json:"ms"`
+	// Numbers is the number check; when it changed numbers, the page
+	// markdown differs from Markdown (the VLM's reply) by exactly those.
+	Numbers *NumberReport `json:"numbers,omitempty"`
+	Ms      int           `json:"ms"`
+}
+
+// PageNumbers returns the number check kept in the Raw of a page read by
+// this engine, or nil.
+func PageNumbers(raw []byte) *NumberReport {
+	var env struct {
+		Numbers *NumberReport `json:"numbers"`
+	}
+	if json.Unmarshal(raw, &env) != nil {
+		return nil
+	}
+	return env.Numbers
 }
 
 // ParsePage runs the two steps at the same time and independently: TurboOCR
@@ -154,8 +186,13 @@ func (e *Engine) ParsePage(ctx context.Context, in parser.PageImage, opt parser.
 		vlm = make(chan pageCall, 1)
 		go func() {
 			t0 := time.Now()
-			tr, cr := e.call(vctx, in.PageNo, e.cfg.PagePrompt, src)
-			vlm <- pageCall{tr: tr, cr: cr, t0: t0}
+			jpg, err := e.encode(src)
+			if err != nil {
+				vlm <- pageCall{cr: CallResult{Error: err.Error()}, t0: t0}
+				return
+			}
+			tr, cr := e.send(vctx, Request{Prompt: e.cfg.PagePrompt, JPEG: jpg, PageNo: in.PageNo})
+			vlm <- pageCall{tr: tr, cr: cr, t0: t0, jpg: jpg}
 		}()
 	}
 	in.Body, in.Size = bytes.NewReader(img), int64(len(img))
@@ -192,7 +229,11 @@ func (e *Engine) ParsePage(ctx context.Context, in parser.PageImage, opt parser.
 	}
 	env.Markdown = strings.TrimSpace(tr.Text)
 	page.Markdown = env.Markdown
-	rep := distribute(page, env.Markdown)
+	if e.cfg.NumberCheck != NumbersOff {
+		page.Markdown, env.Numbers = e.checkNumbers(ctx, in.PageNo, page, env.Markdown, pc)
+		env.Numbers.Truncated = tr.Truncated
+	}
+	rep := distribute(page, page.Markdown)
 	env.Align = &rep
 	if rep.OCRWords > 0 && rep.Coverage < 0.5 {
 		e.cfg.Log.Warn("vlm: page markdown agrees with little of the OCR text", "page", in.PageNo,
@@ -203,11 +244,52 @@ func (e *Engine) ParsePage(ctx context.Context, in parser.PageImage, opt parser.
 }
 
 // pageCall is the result of the page call that runs alongside the layout
-// engine.
+// engine, with the JPEG it sent (a follow-up turn repeats it byte for byte).
 type pageCall struct {
-	tr *Transcription
-	cr CallResult
-	t0 time.Time
+	tr  *Transcription
+	cr  CallResult
+	t0  time.Time
+	jpg []byte
+}
+
+// checkNumbers compares the numbers of md with the OCR lines of page and,
+// with NumbersConfirm, asks the VLM about the conflicts as the next turn of
+// the conversation that read the page. It returns the markdown (changed
+// only where the model was sure) and the report.
+func (e *Engine) checkNumbers(ctx context.Context, pageNo int, page *parser.RawPage, md string, pc pageCall) (string, *NumberReport) {
+	rep := DetectNumbers(md, page)
+	rep.Mode = e.cfg.NumberCheck
+	if len(rep.Conflicts) == 0 {
+		return md, rep
+	}
+	if e.cfg.NumberCheck != NumbersConfirm || len(pc.jpg) == 0 {
+		rep.Unverified = rep.Conflicts
+		return md, rep
+	}
+	answer := pc.tr.Raw
+	if answer == "" {
+		answer = pc.tr.Text
+	}
+	tr, cr := e.send(ctx, Request{
+		PageNo: pageNo,
+		Prompt: confirmPrompt(e.cfg.ConfirmPrompt, rep.Conflicts),
+		History: []Turn{
+			{Role: "user", Text: e.cfg.PagePrompt, JPEG: pc.jpg},
+			{Role: "assistant", Text: answer},
+		},
+	})
+	rep.Call = &cr
+	if cr.Error == "" {
+		answers, err := parseConfirm(tr.Text)
+		if err == nil {
+			md, rep.Resolutions, rep.Unverified = applyConfirm(md, rep.Conflicts, answers)
+			return md, rep
+		}
+		cr.Error = err.Error()
+	}
+	e.cfg.Log.Warn("vlm: number confirmation failed; conflicts stay unverified", "page", pageNo, "err", cr.Error)
+	rep.Unverified = rep.Conflicts
+	return md, rep
 }
 
 // wait returns the page call's result, or nil when no call was started.
@@ -232,12 +314,18 @@ func (e *Engine) envelope(page *parser.RawPage, env rawEnvelope, ms int) {
 // call sends one page image to the Transcriber under the process-wide
 // semaphore, retrying transient errors.
 func (e *Engine) call(ctx context.Context, pageNo int, prompt string, img image.Image) (*Transcription, CallResult) {
-	var cr CallResult
 	jpg, err := e.encode(img)
 	if err != nil {
-		cr.Error = err.Error()
-		return nil, cr
+		return nil, CallResult{Error: err.Error()}
 	}
+	return e.send(ctx, Request{Prompt: prompt, JPEG: jpg, PageNo: pageNo})
+}
+
+// send sends one request under the process-wide semaphore, retrying
+// transient errors.
+func (e *Engine) send(ctx context.Context, req Request) (*Transcription, CallResult) {
+	var cr CallResult
+	var err error
 	select {
 	case e.sem <- struct{}{}:
 	case <-ctx.Done():
@@ -249,7 +337,7 @@ func (e *Engine) call(ctx context.Context, pageNo int, prompt string, img image.
 	t0 := time.Now()
 	var tr *Transcription
 	for attempt := 0; ; attempt++ {
-		tr, err = e.cfg.Client.Transcribe(ctx, Request{Prompt: prompt, JPEG: jpg, PageNo: pageNo})
+		tr, err = e.cfg.Client.Transcribe(ctx, req)
 		if err == nil || attempt >= e.cfg.Retries || !Retryable(err) || ctx.Err() != nil {
 			break
 		}
@@ -264,6 +352,7 @@ func (e *Engine) call(ctx context.Context, pageNo int, prompt string, img image.
 		return nil, cr
 	}
 	cr.PromptTokens, cr.CompletionTokens, cr.Truncated, cr.Meta = tr.PromptTokens, tr.CompletionTokens, tr.Truncated, tr.Meta
+	cr.CachedTokens = tr.CachedTokens
 	return tr, cr
 }
 

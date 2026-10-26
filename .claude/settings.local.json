@@ -1,0 +1,13 @@
+{
+  "skillOverrides": {
+    "speckit-analyze": "off",
+    "speckit-checklist": "off",
+    "speckit-clarify": "off",
+    "speckit-constitution": "off",
+    "speckit-converge": "off",
+    "speckit-implement": "off",
+    "speckit-plan": "off",
+    "speckit-tasks": "off",
+    "speckit-taskstoissues": "off"
+  }
+}

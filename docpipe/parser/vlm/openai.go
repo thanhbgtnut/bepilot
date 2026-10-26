@@ -74,12 +74,25 @@ func (c *OpenAI) Transcribe(ctx context.Context, req Request) (*Transcription, e
 		Role    string `json:"role"`
 		Content []part `json:"content"`
 	}
+	userParts := func(text string, jpg []byte) []part {
+		parts := []part{{Type: "text", Text: text}}
+		if len(jpg) > 0 {
+			parts = append(parts, part{Type: "image_url", ImageURL: map[string]string{"url": "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(jpg)}})
+		}
+		return parts
+	}
+	messages := make([]message, 0, len(req.History)+1)
+	for _, t := range req.History {
+		if t.Role == "assistant" {
+			messages = append(messages, message{Role: "assistant", Content: []part{{Type: "text", Text: t.Text}}})
+			continue
+		}
+		messages = append(messages, message{Role: "user", Content: userParts(t.Text, t.JPEG)})
+	}
+	messages = append(messages, message{Role: "user", Content: userParts(req.Prompt, req.JPEG)})
 	body, err := json.Marshal(map[string]any{
 		"model": c.cfg.Model, "max_tokens": c.cfg.MaxTokens, "temperature": c.cfg.Temperature,
-		"messages": []message{{Role: "user", Content: []part{
-			{Type: "text", Text: req.Prompt},
-			{Type: "image_url", ImageURL: map[string]string{"url": "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(req.JPEG)}},
-		}}},
+		"messages": messages,
 	})
 	if err != nil {
 		return nil, &PermanentError{Err: err}
@@ -117,8 +130,11 @@ func (c *OpenAI) Transcribe(ctx context.Context, req Request) (*Transcription, e
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
 		Usage struct {
-			PromptTokens     int `json:"prompt_tokens"`
-			CompletionTokens int `json:"completion_tokens"`
+			PromptTokens        int `json:"prompt_tokens"`
+			CompletionTokens    int `json:"completion_tokens"`
+			PromptTokensDetails struct {
+				CachedTokens int `json:"cached_tokens"`
+			} `json:"prompt_tokens_details"`
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(raw, &out); err != nil {
@@ -127,7 +143,8 @@ func (c *OpenAI) Transcribe(ctx context.Context, req Request) (*Transcription, e
 	if len(out.Choices) == 0 {
 		return nil, errors.New("vlm: openai: no choice in the answer")
 	}
-	meta, text := SplitFrontMatter(out.Choices[0].Message.Content)
+	content := out.Choices[0].Message.Content
+	meta, text := SplitFrontMatter(content)
 	return &Transcription{Text: text, Meta: meta, PromptTokens: out.Usage.PromptTokens, CompletionTokens: out.Usage.CompletionTokens,
-		Truncated: out.Choices[0].FinishReason == "length"}, nil
+		Truncated: out.Choices[0].FinishReason == "length", Raw: content, CachedTokens: out.Usage.PromptTokensDetails.CachedTokens}, nil
 }

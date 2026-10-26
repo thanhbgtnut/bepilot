@@ -114,22 +114,22 @@ func (h *Handlers) ParseDocument(ctx context.Context, c *app.RequestContext) {
 
 // DocumentMessages handles POST /v1/documents/messages.
 //
-// @Summary     Ask the agent about PDFs and images (streaming or buffered)
-// @Description The body is an Anthropic Messages request. The last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is read with docpipe (markdown and OCR text per page), and the agent answers the question with the documents in its context. The response is the same as `/v1/messages`: with `stream: true` (or `Accept: text/event-stream`) Anthropic SSE frames, preceded by a `document_parsed` extension event once the files are read (`ping` frames keep the stream open while they are); otherwise a single JSON message, plus `request_id` and `documents`.
-// @Description The turn is stored in the session like any other (`metadata.session_id` continues one), so later `/v1/messages` calls on that session can ask about the same documents. The request, the files, what was read and the response are stored (`document_requests`, `document_files`).
+// @Summary     Send files and a question in one request
+// @Description The body is an Anthropic Messages request whose last user message carries the files as `document` (PDF) or `image` content blocks with a base64 `source`, and the question as `text` blocks. Every file is stored as a document (as `POST /v1/documents` does; the same file uploaded before is reused) and attached to the session (`metadata.session_id`, or a new session titled from the question). The files are read in the background.
+// @Description With `stream: true` (or `Accept: text/event-stream`) the stream stays open while the files are read, sending `document_progress` events (and `ping` frames), then answers like `/v1/messages`: the agent gets the full text of every document of the session. Without streaming, the answer is `202` with the documents and the session as soon as the files are stored; ask on the session with `/v1/messages` once they are `ready` (a session whose documents are all ready already is answered at once, `200`). The documents stay attached: later questions on the session need not send them again.
 // @Tags        Documents
 // @Accept      json
 // @Produce     json
 // @Produce     text/event-stream
 // @Param       request  body      dto.MessagesRequest  true  "Anthropic Messages request with document / image blocks"
-// @Success     200      {object}  dto.DocumentMessageResponse
-// @Success     202      {object}  dto.SteeredResponse
+// @Success     200      {object}  dto.MessageResponse
+// @Success     202      {object}  dto.DocumentsAccepted
 // @Failure     400      {object}  dto.ErrorResponse
 // @Failure     401      {object}  dto.ErrorResponse
 // @Failure     403      {object}  dto.ErrorResponse
 // @Failure     404      {object}  dto.ErrorResponse
 // @Failure     413      {object}  dto.ErrorResponse
-// @Failure     502      {object}  dto.ErrorResponse
+// @Failure     422      {object}  dto.ErrorResponse
 // @Failure     503      {object}  dto.ErrorResponse
 // @Security    ApiKeyAuth
 // @Router      /v1/documents/messages [post]
@@ -152,16 +152,16 @@ func (h *Handlers) DocumentMessages(ctx context.Context, c *app.RequestContext) 
 		h.badRequest(c, "messages must contain a user message")
 		return
 	}
-	docs, err := last.Documents()
+	inputs, err := last.Documents()
 	if err != nil {
 		h.badRequest(c, err.Error())
 		return
 	}
-	if len(docs) == 0 {
+	if len(inputs) == 0 {
 		h.badRequest(c, "the last user message must contain at least one document or image block")
 		return
 	}
-	if len(docs) > h.Docs.MaxFiles {
+	if len(inputs) > h.Docs.MaxFiles {
 		h.badRequest(c, fmt.Sprintf("at most %d documents per request", h.Docs.MaxFiles))
 		return
 	}
@@ -170,8 +170,8 @@ func (h *Handlers) DocumentMessages(ctx context.Context, c *app.RequestContext) 
 		h.badRequest(c, "the last user message must contain a text block with the question")
 		return
 	}
-	files := make([]document.File, len(docs))
-	for i, d := range docs {
+	files := make([]document.File, len(inputs))
+	for i, d := range inputs {
 		files[i] = document.File{Name: d.Name, MediaType: d.MediaType, Data: d.Data}
 		if int64(len(d.Data)) > h.maxFileBytes() {
 			h.tooLarge(c, fmt.Sprintf("document %d is larger than %d MB", i+1, h.Docs.MaxFileMB))
@@ -183,146 +183,42 @@ func (h *Handlers) DocumentMessages(ctx context.Context, c *app.RequestContext) 
 		}
 	}
 
-	// The documents go to the agent as text; the session is titled from the
-	// question.
+	// The question is the user message; the documents reach the agent
+	// through the session.
 	in, ok := h.turnInput(ctx, c, user, req, prompt, prompt)
 	if !ok {
 		return
 	}
-	rec := h.startDocumentRequest(ctx, c, user, domain.DocumentKindMessage, req.WithoutFileData(), files)
-	if rec == nil {
-		return
-	}
-	rec.SessionID = &in.Session.ID
-
-	if wantsStream(c, req) {
-		h.streamDocumentTurn(ctx, c, rec, in, files, prompt)
-		return
-	}
-
-	results, err := h.parseAll(ctx, files)
-	rec.Result = resultRecord(files, results)
-	if err != nil {
-		h.failDocumentRequest(ctx, c, rec, err)
-		return
-	}
-	in.UserText = documentPrompt(files, results, prompt)
-	out, err := h.Agent.Run(ctx, in, nil)
-	h.linkMessages(rec, out)
-	if err != nil && len(out.AssistantMessage.Blocks) == 0 {
-		h.failDocumentRequest(ctx, c, rec, err)
-		return
-	}
-	if out.Steered {
-		resp := steeredResponse(in, out)
-		rec.Status, rec.Response = domain.DocumentOK, resp
-		h.finishDocumentRequest(ctx, rec)
-		c.JSON(consts.StatusAccepted, resp)
-		return
-	}
-	resp := dto.DocumentMessageResponse{MessageResponse: messageResponse(in, out), RequestID: rec.ID.String(), Documents: documentInfos(files, results)}
-	rec.Status, rec.Response = domain.DocumentOK, resp
-	if err != nil {
-		rec.Status, rec.Error = domain.DocumentError, err.Error()
-	}
-	h.finishDocumentRequest(ctx, rec)
-	c.JSON(consts.StatusOK, resp)
-}
-
-// streamDocumentTurn opens the stream first, so the client sees pings while
-// the files are read, then streams the turn like /v1/messages.
-func (h *Handlers) streamDocumentTurn(ctx context.Context, c *app.RequestContext, rec *domain.DocumentRequest, in agent.RunInput, files []document.File, prompt string) {
-	w, stop := h.openStream(ctx, c)
-	defer stop()
-
-	results, err := h.parseAll(ctx, files)
-	rec.Result = resultRecord(files, results)
-	if err != nil {
-		rec.Status, rec.Error = domain.DocumentError, err.Error()
-		h.finishDocumentRequest(ctx, rec)
-		w.Publish(errorFrame(documentErrorType(err), err.Error()))
-		return
-	}
-	parsed, _ := json.Marshal(map[string]any{"type": "document_parsed", "request_id": rec.ID.String(), "documents": documentInfos(files, results)})
-	w.Publish(&events.Frame{Event: "document_parsed", Data: parsed})
-
-	in.UserText = documentPrompt(files, results, prompt)
-	out, err := h.runStream(ctx, w, in)
-	h.linkMessages(rec, out)
-	rec.Status = domain.DocumentOK
-	if out.Steered {
-		rec.Response = steeredResponse(in, out)
-	} else {
-		rec.Response = dto.DocumentMessageResponse{MessageResponse: messageResponse(in, out), RequestID: rec.ID.String(), Documents: documentInfos(files, results)}
-	}
-	if err != nil {
-		rec.Status, rec.Error = domain.DocumentError, err.Error()
-	}
-	h.finishDocumentRequest(ctx, rec)
-}
-
-// parseAll reads every file, in order. It fails on the first file that cannot
-// be read at all; pages that fail inside a readable file are kept as errors.
-func (h *Handlers) parseAll(ctx context.Context, files []document.File) ([]document.Result, error) {
-	results := make([]document.Result, 0, len(files))
-	for i, f := range files {
-		res, err := h.Documents.Parse(ctx, f)
-		results = append(results, res)
-		if err == nil && len(res.Pages) > 0 && res.Failed() == len(res.Pages) {
-			err = fmt.Errorf("%w: %s", errAllPagesFailed, res.Pages[0].Error)
-		}
+	stored := make([]dto.Document, 0, len(files))
+	ids := make([]uuid.UUID, 0, len(files))
+	for _, f := range files {
+		d, _, err := h.storeDocument(ctx, user, f)
 		if err != nil {
-			return results, fmt.Errorf("document %d (%s): %w", i+1, displayName(f, i), err)
+			h.serverError(c, err)
+			return
 		}
+		stored = append(stored, dto.DocumentFromDomain(d))
+		ids = append(ids, d.ID)
 	}
-	return results, nil
-}
+	if err := h.Store.Library.Attach(ctx, in.Session.ID, ids); err != nil {
+		h.serverError(c, err)
+		return
+	}
+	docs, ok := h.sessionDocuments(ctx, c, user, in.Session, dto.MessagesRequest{})
+	if !ok {
+		return
+	}
 
-// documentPrompt is the user message the agent receives: every document's
-// pages (markdown and OCR text), then the question.
-func documentPrompt(files []document.File, results []document.Result, prompt string) string {
-	var b strings.Builder
-	b.WriteString("<documents>\n")
-	for i, res := range results {
-		fmt.Fprintf(&b, "<document index=\"%d\" name=%q media_type=%q pages=\"%d\">\n", i+1, displayName(files[i], i), res.MediaType, len(res.Pages))
-		for _, p := range res.Pages {
-			fmt.Fprintf(&b, "<page number=\"%d\">\n", p.PageNo)
-			if p.Error != "" {
-				fmt.Fprintf(&b, "<error>this page could not be read: %s</error>\n", p.Error)
-			} else {
-				b.WriteString("<markdown>\n")
-				b.WriteString(strings.TrimSpace(p.Markdown))
-				b.WriteString("\n</markdown>\n<ocr_text>\n")
-				b.WriteString(strings.TrimSpace(p.Text))
-				b.WriteString("\n</ocr_text>\n")
-			}
-			b.WriteString("</page>\n")
-		}
-		b.WriteString("</document>\n")
+	stream := wantsStream(c, req)
+	if !stream && documentsReady(docs) != nil {
+		c.JSON(consts.StatusAccepted, dto.DocumentsAccepted{Type: "documents_accepted", Documents: stored, Session: dto.BriefFromDomain(in.Session)})
+		return
 	}
-	b.WriteString("</documents>\n\n")
-	b.WriteString("The documents above were read by OCR: <markdown> is the page laid out (headings, tables), <ocr_text> is the raw recognised text. Prefer <markdown>; check <ocr_text> where it looks garbled or incomplete.\n\n")
-	b.WriteString(prompt)
-	return b.String()
-}
-
-func displayName(f document.File, i int) string {
-	if f.Name != "" {
-		return f.Name
-	}
-	return fmt.Sprintf("document-%d", i+1)
+	h.documentTurn(ctx, c, user, in, docs, stream)
 }
 
 func documentInfo(f document.File, res document.Result) dto.DocumentInfo {
 	return dto.DocumentInfo{Name: f.Name, MediaType: res.MediaType, SizeBytes: len(f.Data), Pages: len(res.Pages), FailedPages: res.Failed()}
-}
-
-func documentInfos(files []document.File, results []document.Result) []dto.DocumentInfo {
-	out := make([]dto.DocumentInfo, len(results))
-	for i, res := range results {
-		out[i] = documentInfo(files[i], res)
-	}
-	return out
 }
 
 // resultRecord is what is stored as document_requests.result: per file, its

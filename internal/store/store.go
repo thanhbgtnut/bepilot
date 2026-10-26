@@ -31,6 +31,9 @@ type Store struct {
 
 	TaskResults *TaskResultsRepo
 	Documents   *DocumentsRepo
+	// Library holds the uploaded documents read in the background
+	// (/v1/documents), their pages and the sessions they belong to.
+	Library *LibraryRepo
 }
 
 // Open creates the pool and, when cfg.DB.AutoMigrate is set, runs migrations.
@@ -74,6 +77,7 @@ func Open(ctx context.Context, cfg config.DB) (*Store, error) {
 
 		TaskResults: &TaskResultsRepo{pool},
 		Documents:   &DocumentsRepo{pool},
+		Library:     &LibraryRepo{pool},
 	}, nil
 }
 

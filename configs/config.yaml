@@ -109,6 +109,16 @@ documents:
   concurrency: 4                    # pages read at once
   max_file_mb: 32
   max_files: 5                      # documents per /v1/documents/messages request
+  # Uploaded documents (/v1/documents) are read in the background.
+  workers: 2                        # documents read at once
+  lease: 2m                         # a worker's hold on a document, renewed while it works
+  max_attempts: 3                   # tries before a document is marked failed
+  wait_timeout: 15m                 # how long a streamed question waits for its documents
+  # Context the model must fit a question with its documents in (tokens);
+  # 0 skips the check. context_windows overrides it per model.
+  context_window: 0
+  # context_windows:
+  #   claude-sonnet-5: 200000
   ocr:
     base_url: ${TURBOOCR_URL}       # TurboOCR server (POST /ocr/raw)
     timeout: 2m
@@ -119,6 +129,12 @@ documents:
     api_key: ${DOCS_VLM_API_KEY}
     model: ${DOCS_VLM_MODEL}
     timeout: 5m
+    # Compare the numbers of the VLM markdown with the OCR text:
+    #   off     - no check
+    #   detect  - mark conflicting numbers unverified, change nothing
+    #   confirm - ask the VLM about them in the same conversation (the server's
+    #             prefix cache reuses the image); replace only when it is sure
+    number_check: confirm
 
 log:
   level: ${BEPILOT_LOG_LEVEL}

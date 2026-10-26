@@ -133,11 +133,3 @@ type ParseDocumentResponse struct {
 	Markdown string         `json:"markdown"`
 	Pages    []DocumentPage `json:"pages"`
 }
-
-// DocumentMessageResponse is the non-streaming body of
-// POST /v1/documents/messages: an Anthropic message plus what was read.
-type DocumentMessageResponse struct {
-	MessageResponse
-	RequestID string         `json:"request_id"` // bepilot extension
-	Documents []DocumentInfo `json:"documents"`  // bepilot extension
-}
